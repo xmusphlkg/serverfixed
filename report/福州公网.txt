@@ -1,0 +1,468 @@
+Linux ecm-8831 5.10.0-26-amd64 #1 SMP Debian 5.10.197-1 (2023-09-29) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Thu Jun 18 01:18:50 2026 from 117.28.251.184
+root@ecm-8831:~# cd /tmp && \
+wget -O incident_forensic.sh https://g.blfrp.cn/https://raw.githubusercontent.com/xmusphlkg/serverfixed/refs/heads/main/incident_forensic.sh || \
+curl -L -o incident_forensic.sh https://g.blfrp.cn/https://raw.githubusercontent.com/xmusphlkg/serverfixed/refs/heads/main/incident_forensic.sh && \
+chmod +x incident_forensic.sh && \
+sudo bash incident_forensic.sh | tee report_$(hostname)_$(date +%F_%H%M%S).txt
+--2026-06-18 10:06:40--  https://g.blfrp.cn/https://raw.githubusercontent.com/xmusphlkg/serverfixed/refs/heads/main/incident_forensic.sh
+Resolving g.blfrp.cn (g.blfrp.cn)... 138.2.49.211
+Connecting to g.blfrp.cn (g.blfrp.cn)|138.2.49.211|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1604 (1.6K) [text/plain]
+Saving to: 'incident_forensic.sh'
+
+incident_forensic.sh                            100%[====================================================================================================>]   1.57K  --.-KB/s    in 0s      
+
+2026-06-18 10:06:41 (18.7 MB/s) - 'incident_forensic.sh' saved [1604/1604]
+
+==================== INCIDENT FORENSIC REPORT ====================
+HOST: ecm-8831
+TIME: Thu Jun 18 10:06:41 CST 2026
+===============================================================
+
+===== [1] TIME / SYSTEM INFO =====
+ 10:06:41 up 58 days, 23:09,  1 user,  load average: 0.06, 0.08, 0.07
+Linux ecm-8831 5.10.0-26-amd64 #1 SMP Debian 5.10.197-1 (2023-09-29) x86_64 GNU/Linux
+Thu Jun 18 10:06:41 CST 2026
+root
+
+===== [2] /dev/shm CHECK =====
+total 8.0K
+drwxrwxrwt  2 root root  100 Jun 18 10:00 .
+drwxr-xr-x 19 root root 3.1K Apr 20 10:57 ..
+-rw-r--r--  1 root root   10 Jun 18 10:06 .panelTask.pl
+-rw-r--r--  1 root root   10 Jun 18 10:06 .start_task.pl
+srwxrwxrwx  1 root root    0 Jun 18 10:00 xss_decode.sock
+    75617      4 -rw-r--r--   1 root     root           10 Jun 18 10:06 /dev/shm/.start_task.pl
+    75616      4 -rw-r--r--   1 root     root           10 Jun 18 10:06 /dev/shm/.panelTask.pl
+
+===== [3] SUSPICIOUS PROCESSES =====
+root           6  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/0:0H-events_highpri]
+root          20  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/1:0H-kblockd]
+root          25  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/2:0H-events_highpri]
+root          30  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/3:0H-events_highpri]
+root          35  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/4:0H-events_highpri]
+root          40  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/5:0H-events_highpri]
+root          45  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/6:0H-kblockd]
+root          50  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/7:0H-events_highpri]
+root          92  0.0  0.0      0     0 ?        I<   Apr20   4:36 [kworker/0:1H-kblockd]
+root         114  0.0  0.0      0     0 ?        I<   Apr20   0:00 [kworker/u17:0]
+root         136  0.0  0.0      0     0 ?        I<   Apr20   6:39 [kworker/2:1H-xfs-log/vda1]
+root         171  0.0  0.0      0     0 ?        I<   Apr20   4:50 [kworker/5:1H-kblockd]
+root         177  0.0  0.0      0     0 ?        I<   Apr20   6:05 [kworker/3:1H-kblockd]
+root         183  0.0  0.0      0     0 ?        I<   Apr20   5:20 [kworker/4:1H-kblockd]
+root         184  0.0  0.0      0     0 ?        I<   Apr20   4:39 [kworker/6:1H-kblockd]
+root         196  0.0  0.0      0     0 ?        I<   Apr20   4:33 [kworker/7:1H-kblockd]
+root         245  0.0  0.0      0     0 ?        I<   Apr20   6:56 [kworker/1:1H-kblockd]
+root     2869615  0.0  0.0      0     0 ?        I    01:23   0:02 [kworker/7:1-events]
+root     2874739  0.0  0.0      0     0 ?        I    02:20   0:02 [kworker/2:1-events]
+root     2888315  0.0  0.0      0     0 ?        I    05:00   0:00 [kworker/6:2-mm_percpu_wq]
+root     2895843  0.0  0.0      0     0 ?        I    06:30   0:00 [kworker/3:3-events]
+root     2897807  0.0  0.0      0     0 ?        I    06:54   0:00 [kworker/4:1-events]
+root     2899965  0.0  0.0      0     0 ?        I    07:20   0:00 [kworker/4:2-events]
+root     2900791  0.0  0.0      0     0 ?        I    07:30   0:00 [kworker/5:0-mm_percpu_wq]
+root     2901561  0.0  0.0      0     0 ?        I    07:40   0:00 [kworker/5:3]
+root     2904870  0.0  0.0      0     0 ?        I    08:20   0:00 [kworker/3:0-events]
+root     2904871  0.0  0.0      0     0 ?        I    08:20   0:00 [kworker/7:0]
+root     2909369  0.0  0.0      0     0 ?        I    09:14   0:00 [kworker/u16:2-events_unbound]
+root     2909820  0.0  0.0      0     0 ?        I    09:20   0:00 [kworker/2:2-events]
+root     2911346  0.0  0.0      0     0 ?        I    09:38   0:00 [kworker/u16:3-flush-254:0]
+root     2912256  0.0  0.0      0     0 ?        I    09:50   0:00 [kworker/0:3-events_power_efficient]
+root     2912260  0.0  0.0      0     0 ?        I    09:50   0:00 [kworker/u16:0-events_unbound]
+root     2912662  0.0  0.0      0     0 ?        I    09:55   0:00 [kworker/1:2-ata_sff]
+root     2913086  0.0  0.0      0     0 ?        I    10:00   0:00 [kworker/6:3-cgroup_destroy]
+www      2913106  0.3  0.6 2748268 101780 ?      Sl   10:00   0:01 nginx: worker process
+www      2913107  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913108  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913109  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913110  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913111  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913112  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+www      2913113  0.0  0.2 1023148 46004 ?       S    10:00   0:00 nginx: worker process
+root     2913153  0.1  0.0      0     0 ?        I    10:00   0:00 [kworker/1:0-ata_sff]
+root     2913210  0.0  0.0      0     0 ?        I    10:00   0:00 [kworker/0:0-events]
+root     2913489  0.0  0.0      0     0 ?        I    10:04   0:00 [kworker/2:0]
+root     2913585  0.1  0.0      0     0 ?        I    10:05   0:00 [kworker/1:1-events]
+root     2913657  0.0  0.0      0     0 ?        I    10:06   0:00 [kworker/0:1-events]
+
+===== [4] NETWORK CONNECTIONS =====
+Netid State      Recv-Q Send-Q       Local Address:Port             Peer Address:Port Process                                                                                                                                                                                                                                                                                                
+udp   UNCONN     0      0                  0.0.0.0:56842                 0.0.0.0:*     users:(("avahi-daemon",pid=764,fd=14))                                                                                                                                                                                                                                                                
+udp   UNCONN     0      0                  0.0.0.0:68                    0.0.0.0:*     users:(("dhclient",pid=1093,fd=8))                                                                                                                                                                                                                                                                    
+udp   UNCONN     0      0                  0.0.0.0:111                   0.0.0.0:*     users:(("rpcbind",pid=758,fd=5),("systemd",pid=1,fd=80))                                                                                                                                                                                                                                              
+udp   UNCONN     0      0                127.0.0.1:9030                  0.0.0.0:*     users:(("monitor",pid=1060,fd=8))                                                                                                                                                                                                                                                                     
+udp   UNCONN     0      0                  0.0.0.0:5353                  0.0.0.0:*     users:(("avahi-daemon",pid=764,fd=12))                                                                                                                                                                                                                                                                
+udp   UNCONN     0      0                     [::]:111                      [::]:*     users:(("rpcbind",pid=758,fd=7),("systemd",pid=1,fd=92))                                                                                                                                                                                                                                              
+udp   UNCONN     0      0                     [::]:50622                    [::]:*     users:(("avahi-daemon",pid=764,fd=15))                                                                                                                                                                                                                                                                
+udp   UNCONN     0      0                     [::]:5353                     [::]:*     users:(("avahi-daemon",pid=764,fd=13))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      4096               0.0.0.0:111                   0.0.0.0:*     users:(("rpcbind",pid=758,fd=4),("systemd",pid=1,fd=78))                                                                                                                                                                                                                                              
+tcp   LISTEN     0      4096               0.0.0.0:8080                  0.0.0.0:*     users:(("docker-proxy",pid=2653,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      511                0.0.0.0:80                    0.0.0.0:*     users:(("nginx_btwaf_xss",pid=2913125,fd=77),("nginx",pid=2913113,fd=77),("nginx",pid=2913112,fd=77),("nginx",pid=2913111,fd=77),("nginx",pid=2913110,fd=77),("nginx",pid=2913109,fd=77),("nginx",pid=2913108,fd=77),("nginx",pid=2913107,fd=77),("nginx",pid=2913106,fd=77),("nginx",pid=2210,fd=77))
+tcp   LISTEN     0      511                0.0.0.0:23156                 0.0.0.0:*     users:(("nginx_btwaf_xss",pid=2913125,fd=76),("nginx",pid=2913113,fd=76),("nginx",pid=2913112,fd=76),("nginx",pid=2913111,fd=76),("nginx",pid=2913110,fd=76),("nginx",pid=2913109,fd=76),("nginx",pid=2913108,fd=76),("nginx",pid=2913107,fd=76),("nginx",pid=2913106,fd=76),("nginx",pid=2210,fd=76))
+tcp   LISTEN     0      9                  0.0.0.0:21                    0.0.0.0:*     users:(("pure-ftpd",pid=965,fd=4))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      128                0.0.0.0:14299                 0.0.0.0:*     users:(("BT-Panel",pid=2237,fd=5))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      511                0.0.0.0:443                   0.0.0.0:*     users:(("nginx_btwaf_xss",pid=2913125,fd=78),("nginx",pid=2913113,fd=78),("nginx",pid=2913112,fd=78),("nginx",pid=2913111,fd=78),("nginx",pid=2913110,fd=78),("nginx",pid=2913109,fd=78),("nginx",pid=2913108,fd=78),("nginx",pid=2913107,fd=78),("nginx",pid=2913106,fd=78),("nginx",pid=2210,fd=78))
+tcp   LISTEN     0      511                0.0.0.0:21532                 0.0.0.0:*     users:(("nginx_btwaf_xss",pid=2913125,fd=75),("nginx",pid=2913113,fd=75),("nginx",pid=2913112,fd=75),("nginx",pid=2913111,fd=75),("nginx",pid=2913110,fd=75),("nginx",pid=2913109,fd=75),("nginx",pid=2913108,fd=75),("nginx",pid=2913107,fd=75),("nginx",pid=2913106,fd=75),("nginx",pid=2210,fd=75))
+tcp   LISTEN     0      4096               0.0.0.0:801                   0.0.0.0:*     users:(("docker-proxy",pid=2592,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      4096               0.0.0.0:802                   0.0.0.0:*     users:(("docker-proxy",pid=2563,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      4096               0.0.0.0:803                   0.0.0.0:*     users:(("docker-proxy",pid=2614,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      128                0.0.0.0:20708                 0.0.0.0:*     users:(("sshd",pid=1086,fd=3))                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:14299           120.82.84.103:9089  users:(("BT-Panel",pid=2237,fd=22))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299          66.132.195.106:26918 users:(("BT-Panel",pid=2237,fd=20))                                                                                                                                                                                                                                                                   
+tcp   TIME-WAIT  0      0               10.0.1.174:58806           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:14299            120.82.84.85:37315 users:(("BT-Panel",pid=2237,fd=24))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299          162.216.150.32:60188 users:(("BT-Panel",pid=2237,fd=10))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299          162.216.150.32:61966 users:(("BT-Panel",pid=2237,fd=11))                                                                                                                                                                                                                                                                   
+tcp   TIME-WAIT  0      0               10.0.1.174:59498           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:35948           106.227.89.76:8008  users:(("nezha-agent",pid=1666938,fd=7))                                                                                                                                                                                                                                                              
+tcp   TIME-WAIT  0      0               10.0.1.174:443             151.243.11.35:37988                                                                                                                                                                                                                                                                                                       
+tcp   ESTAB      0      4476            10.0.1.174:20708          117.28.251.184:56463 users:(("sshd",pid=2913472,fd=4))                                                                                                                                                                                                                                                                     
+tcp   ESTAB      0      0               10.0.1.174:14299          87.236.176.221:49489 users:(("BT-Panel",pid=2237,fd=21))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299           66.132.195.67:46638 users:(("BT-Panel",pid=2237,fd=26))                                                                                                                                                                                                                                                                   
+tcp   TIME-WAIT  0      0               10.0.1.174:80              8.136.109.234:53252                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0               10.0.1.174:40356           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:14299          195.96.139.188:45205 users:(("BT-Panel",pid=2237,fd=25))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:48366          20.190.148.167:443   users:(("python3",pid=1393514,fd=3))                                                                                                                                                                                                                                                                  
+tcp   ESTAB      0      0               10.0.1.174:58040         169.254.169.254:16463 users:(("ctcss-agentd",pid=988,fd=9))                                                                                                                                                                                                                                                                 
+tcp   ESTAB      0      0               10.0.1.174:14299          66.132.195.115:19610 users:(("BT-Panel",pid=2237,fd=8))                                                                                                                                                                                                                                                                    
+tcp   ESTAB      0      0               10.0.1.174:14299         162.216.150.224:61876 users:(("BT-Panel",pid=2237,fd=17))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299         185.247.137.180:46681 users:(("BT-Panel",pid=2237,fd=16))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299           120.82.84.117:49204 users:(("BT-Panel",pid=2237,fd=27))                                                                                                                                                                                                                                                                   
+tcp   TIME-WAIT  0      0               10.0.1.174:51114           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   TIME-WAIT  0      0               10.0.1.174:38258           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:14299          58.255.237.198:22875 users:(("BT-Panel",pid=2237,fd=23))                                                                                                                                                                                                                                                                   
+tcp   TIME-WAIT  0      0               10.0.1.174:33904           106.227.89.76:8008                                                                                                                                                                                                                                                                                                        
+tcp   ESTAB      0      0               10.0.1.174:14299         185.247.137.204:49913 users:(("BT-Panel",pid=2237,fd=6))                                                                                                                                                                                                                                                                    
+tcp   ESTAB      0      0               10.0.1.174:54032         169.254.169.254:5661  users:(("ctcss-agentd",pid=988,fd=12))                                                                                                                                                                                                                                                                
+tcp   ESTAB      0      0               10.0.1.174:14299         147.185.132.254:63172 users:(("BT-Panel",pid=2237,fd=18))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299         185.247.137.172:45263 users:(("BT-Panel",pid=2237,fd=19))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299         147.185.133.116:58002 users:(("BT-Panel",pid=2237,fd=14))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299           66.132.195.58:6748  users:(("BT-Panel",pid=2237,fd=13))                                                                                                                                                                                                                                                                   
+tcp   FIN-WAIT-1 0      1               10.0.1.174:47816            138.2.49.211:443                                                                                                                                                                                                                                                                                                         
+tcp   ESTAB      0      0               10.0.1.174:14299           66.132.195.73:18174 users:(("BT-Panel",pid=2237,fd=12))                                                                                                                                                                                                                                                                   
+tcp   ESTAB      0      0               10.0.1.174:14299          162.216.149.27:62988 users:(("BT-Panel",pid=2237,fd=9))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                  [::]:111                      [::]:*     users:(("rpcbind",pid=758,fd=6),("systemd",pid=1,fd=83))                                                                                                                                                                                                                                              
+tcp   LISTEN     0      4096                  [::]:8080                     [::]:*     users:(("docker-proxy",pid=2662,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      511                   [::]:80                       [::]:*     users:(("nginx_btwaf_xss",pid=2913125,fd=79),("nginx",pid=2913113,fd=79),("nginx",pid=2913112,fd=79),("nginx",pid=2913111,fd=79),("nginx",pid=2913110,fd=79),("nginx",pid=2913109,fd=79),("nginx",pid=2913108,fd=79),("nginx",pid=2913107,fd=79),("nginx",pid=2913106,fd=79),("nginx",pid=2210,fd=79))
+tcp   LISTEN     0      4096                     *:10001                       *:*     users:(("frps",pid=2855067,fd=11))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10002                       *:*     users:(("frps",pid=2855067,fd=12))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:20563                       *:*     users:(("frps",pid=2855067,fd=13))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10003                       *:*     users:(("frps",pid=2855067,fd=10))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10004                       *:*     users:(("frps",pid=2855067,fd=15))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10005                       *:*     users:(("frps",pid=2855067,fd=16))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      9                     [::]:21                       [::]:*     users:(("pure-ftpd",pid=965,fd=5))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10006                       *:*     users:(("frps",pid=2855067,fd=17))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10007                       *:*     users:(("frps",pid=2855067,fd=18))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10008                       *:*     users:(("frps",pid=2855067,fd=19))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10009                       *:*     users:(("frps",pid=2855067,fd=21))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10041                       *:*     users:(("frps",pid=2855067,fd=14))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10042                       *:*     users:(("frps",pid=2855067,fd=27))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10010                       *:*     users:(("frps",pid=2855067,fd=26))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10043                       *:*     users:(("frps",pid=2855067,fd=28))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      511                   [::]:443                      [::]:*     users:(("nginx_btwaf_xss",pid=2913125,fd=80),("nginx",pid=2913113,fd=80),("nginx",pid=2913112,fd=80),("nginx",pid=2913111,fd=80),("nginx",pid=2913110,fd=80),("nginx",pid=2913109,fd=80),("nginx",pid=2913108,fd=80),("nginx",pid=2913107,fd=80),("nginx",pid=2913106,fd=80),("nginx",pid=2210,fd=80))
+tcp   LISTEN     0      4096                     *:10044                       *:*     users:(("frps",pid=2855067,fd=29))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10045                       *:*     users:(("frps",pid=2855067,fd=22))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10046                       *:*     users:(("frps",pid=2855067,fd=23))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:23838                       *:*     users:(("frps",pid=2855067,fd=8))                                                                                                                                                                                                                                                                     
+tcp   LISTEN     0      4096                     *:10047                       *:*     users:(("frps",pid=2855067,fd=24))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                     *:10048                       *:*     users:(("frps",pid=2855067,fd=25))                                                                                                                                                                                                                                                                    
+tcp   LISTEN     0      4096                  [::]:801                      [::]:*     users:(("docker-proxy",pid=2600,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      4096                  [::]:802                      [::]:*     users:(("docker-proxy",pid=2578,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      4096                  [::]:803                      [::]:*     users:(("docker-proxy",pid=2620,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN     0      128                   [::]:20708                    [::]:*     users:(("sshd",pid=1086,fd=4))                                                                                                                                                                                                                                                                        
+tcp   LISTEN     0      4096                     *:52391                       *:*     users:(("frps",pid=2855067,fd=3))                                                                                                                                                                                                                                                                     
+tcp   LISTEN     0      4096                     *:9033                        *:*     users:(("monitor",pid=1060,fd=9))                                                                                                                                                                                                                                                                     
+tcp   LISTEN     0      150                      *:3306                        *:*     users:(("mysqld",pid=2099,fd=32))                                                                                                                                                                                                                                                                     
+tcp   LISTEN     0      4096                     *:18123                       *:*     users:(("frps",pid=2855067,fd=20))                                                                                                                                                                                                                                                                    
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50260                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:35654                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50312                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37276                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:35670                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50156                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37352                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50180                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37332                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37270                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37282                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:35656                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50246                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50318                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50304                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50164                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50340                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37284                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50234                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50198                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50220                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37308                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50284                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50270                                                                                                                                                                                                                                                                                                       
+tcp   ESTAB      0      0      [::ffff:10.0.1.174]:52391 [::ffff:117.28.251.167]:58108 users:(("frps",pid=2855067,fd=7))                                                                                                                                                                                                                                                                     
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:35672                                                                                                                                                                                                                                                                                                       
+tcp   ESTAB      0      0      [::ffff:10.0.1.174]:52391 [::ffff:117.28.251.144]:46410 users:(("frps",pid=2855067,fd=9))                                                                                                                                                                                                                                                                     
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50142                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37292                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50202                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50342                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50298                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37326                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50334                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37314                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50336                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:37348                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50214                                                                                                                                                                                                                                                                                                       
+tcp   TIME-WAIT  0      0       [::ffff:127.0.0.1]:23838      [::ffff:127.0.0.1]:50194                                                                                                                                                                                                                                                                                                       
+
+===== [5] OUTBOUND CONNECTIONS (TOP) =====
+     37 [::ffff:127.0.0.1]:23838
+     20 10.0.1.174:14299
+      2 [::ffff:10.0.1.174]:52391
+      2 [::]:111
+      2 0.0.0.0:111
+      1 [::]:8080
+      1 [::]:803
+      1 [::]:802
+      1 [::]:801
+      1 [::]:80
+      1 [::]:5353
+      1 [::]:50622
+      1 [::]:443
+      1 [::]:21
+      1 [::]:20708
+      1 Local
+      1 127.0.0.1:9030
+      1 10.0.1.174:80
+      1 10.0.1.174:59498
+      1 10.0.1.174:58806
+      1 10.0.1.174:58040
+      1 10.0.1.174:54032
+      1 10.0.1.174:51114
+      1 10.0.1.174:48366
+      1 10.0.1.174:47816
+      1 10.0.1.174:443
+      1 10.0.1.174:40356
+      1 10.0.1.174:38258
+      1 10.0.1.174:35948
+      1 10.0.1.174:33904
+
+===== [6] CRON CHECK =====
+--- root cron ---
+
+30 1 * * *  /www/server/cron/90a3f1a050aff5971d96049f33a867c8 >> /www/server/cron/90a3f1a050aff5971d96049f33a867c8.log 2>&1
+30 3 * * *  /www/server/cron/8193050c6ce340dafab21d6f10cf31fa >> /www/server/cron/8193050c6ce340dafab21d6f10cf31fa.log 2>&1
+23 6 * * *  /www/server/cron/3ab48c27ec99cb9787749c362afae517 >> /www/server/cron/3ab48c27ec99cb9787749c362afae517.log 2>&1
+*/20 * * * *  /www/server/cron/338c8726a851899da23b509e25d7b6a8 >> /www/server/cron/338c8726a851899da23b509e25d7b6a8.log 2>&1
+*/2 * * * *  /www/server/cron/e1d933559241d53c29feaa223348ee69 >> /www/server/cron/e1d933559241d53c29feaa223348ee69.log 2>&1
+30 3 * * *  /www/server/cron/6a256ab58ed87bd76ef8caa8e7ad7908 >> /www/server/cron/6a256ab58ed87bd76ef8caa8e7ad7908.log 2>&1
+0 * * * *  /www/server/cron/83dc57ad77fe4976b725272689f81ca9 >> /www/server/cron/83dc57ad77fe4976b725272689f81ca9.log 2>&1
+00 00 * * *  /www/server/cron/dc8f7e22f01cfe0857787675673e2276 >> /www/server/cron/dc8f7e22f01cfe0857787675673e2276.log 2>&1
+--- system cron ---
+
+===== [7] RC.LOCAL / PERSISTENCE =====
+/etc/init.d/udev:25:  if mountpoint -q /dev/shm/; then
+/etc/init.d/udev:26:    umount -n -l /dev/shm/
+
+===== [8] SYSTEMD CHECK =====
+acpid.service                              enabled         enabled
+apparmor.service                           enabled         enabled
+avahi-daemon.service                       enabled         enabled
+cloud-config.service                       enabled         enabled
+cloud-final.service                        enabled         enabled
+cloud-init-local.service                   enabled         enabled
+cloud-init.service                         enabled         enabled
+console-setup.service                      enabled         enabled
+containerd.service                         enabled         enabled
+cron.service                               enabled         enabled
+cryptdisks-early.service                   masked          enabled
+cryptdisks.service                         masked          enabled
+ctcm-agent.service                         enabled         enabled
+ctcss.service                              enabled         enabled
+docker.service                             enabled         enabled
+e2scrub_reap.service                       enabled         enabled
+fail2ban.service                           enabled         enabled
+frps.service                               disabled        enabled
+getty@.service                             enabled         enabled
+hwclock.service                            masked          enabled
+ifupdown-wait-online.service               disabled        enabled
+irqbalance.service                         enabled         enabled
+kdump-tools.service                        enabled         enabled
+keyboard-setup.service                     enabled         enabled
+ModemManager.service                       enabled         enabled
+monitor.service                            enabled         enabled
+networking.service                         enabled         enabled
+NetworkManager-dispatcher.service          enabled         enabled
+NetworkManager-wait-online.service         enabled         enabled
+NetworkManager.service                     enabled         enabled
+nezha-agent-b00ce09.service                enabled         enabled
+nezha-agent.service                        enabled         enabled
+nfs-common.service                         masked          enabled
+nftables.service                           disabled        enabled
+qemu-guest-agent.service                   enabled         enabled
+rc-local.service                           enabled-runtime enabled
+rc.service                                 masked          enabled
+rcS.service                                masked          enabled
+rpc-statd-notify.service                   disabled        enabled
+rpc-statd.service                          disabled        enabled
+rpcbind.service                            enabled         enabled
+rsyslog.service                            enabled         enabled
+serial-getty@.service                      indirect        enabled
+ssh.service                                enabled         enabled
+sudo.service                               masked          enabled
+sysstat.service                            enabled         enabled
+systemd-networkd.service                   disabled        enabled
+systemd-pstore.service                     enabled         enabled
+systemd-remount-fs.service                 enabled-runtime enabled
+systemd-resolved.service                   disabled        enabled
+systemd-timesyncd.service                  enabled         enabled
+tuned.service                              enabled         enabled
+ufw.service                                enabled         enabled
+wpa_supplicant-nl80211@.service            disabled        enabled
+wpa_supplicant-wired@.service              disabled        enabled
+wpa_supplicant.service                     enabled         enabled
+wpa_supplicant@.service                    disabled        enabled
+x11-common.service                         masked          enabled
+/lib/systemd/system/sysinit.target.wants/systemd-udevd.service:22:# Note that udev will reset the value internally for its workers
+/lib/systemd/system/systemd-udevd.service:22:# Note that udev will reset the value internally for its workers
+/lib/systemd/system/udev.service:22:# Note that udev will reset the value internally for its workers
+
+===== [9] SSH LOGIN HISTORY =====
+root     pts/0        Thu Jun 18 10:04   still logged in    117.28.251.184
+root     pts/3        Thu Jun 18 01:18 - 01:23  (00:04)     117.28.251.184
+root     pts/2        Thu Jun 18 01:18 - 01:53  (00:34)     175.2.192.139
+root     pts/0        Thu Jun 18 00:26 - 01:23  (00:56)     117.28.251.184
+reboot   system boot  Mon Apr 20 10:57   still running      5.10.0-26-amd64
+root     pts/0        Fri Sep 12 14:45 - 14:45  (00:00)     117.28.251.190
+root     pts/1        Fri Jun 13 12:34 - 12:34  (00:00)     117.28.251.142
+root     pts/0        Fri Jun 13 12:29 - 12:35  (00:06)     117.28.251.142
+root     pts/0        Fri Jun  6 17:21 - 18:37  (01:16)     117.28.251.169
+root     pts/0        Thu May 15 15:19 - 15:19  (00:00)     117.28.251.154
+root     pts/0        Mon Apr 21 18:02 - 18:19  (00:16)     117.28.251.138
+root     pts/0        Wed Mar 12 11:59 - 20:55  (08:56)     117.28.251.138
+root     pts/0        Tue Feb  4 21:27 - 21:27  (00:00)     117.28.251.182
+root     pts/1        Thu Jan  9 13:26 - 21:56  (08:30)     117.28.251.182
+root     pts/1        Thu Jan  9 11:55 - 11:55  (00:00)     117.28.251.182
+root     pts/1        Thu Jan  2 20:02 - 21:59  (01:57)     117.28.251.182
+root     pts/1        Tue Dec 31 23:37 - 23:41  (00:04)     117.28.251.179
+root     pts/1        Tue Dec 31 22:57 - 23:34  (00:36)     117.28.251.179
+root     pts/1        Tue Dec 31 16:16 - 21:18  (05:01)     117.28.251.179
+root     pts/0        Tue Dec 31 16:11 - 16:16  (00:04)     117.28.251.179
+root     pts/0        Wed Sep 11 21:37 - 21:38  (00:01)     117.28.251.254
+root     pts/0        Tue Sep 10 17:57 - 18:30  (00:33)     117.28.251.254
+root     pts/0        Tue Sep 10 11:15 - 12:36  (01:21)     117.28.251.254
+root     pts/0        Mon Sep  9 18:20 - 22:51  (04:30)     117.28.251.254
+root     pts/0        Mon Sep  9 18:09 - 18:12  (00:03)     117.28.251.254
+root     pts/1        Mon Sep  9 15:24 - 17:04  (01:39)     117.28.251.254
+root     pts/0        Mon Sep  9 15:24 - 18:07  (02:43)     117.28.251.254
+root     tty1         Mon Sep  9 15:22 - down  (587+19:35)
+reboot   system boot  Mon Sep  9 15:21 - 10:57 (587+19:35)  5.10.0-26-amd64
+
+wtmp begins Mon Sep  9 15:21:43 2024
+
+===== [10] NETWORK INTERFACES =====
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether fa:16:3e:30:99:2d brd ff:ff:ff:ff:ff:ff
+    altname enp0s3
+    altname ens3
+    inet 10.0.1.174/8 brd 10.255.255.255 scope global noprefixroute eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::5342:cd91:f59b:5033/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+3: docker0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default 
+    link/ether 02:42:9f:cd:70:bd brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::42:9fff:fecd:70bd/64 scope link 
+       valid_lft forever preferred_lft forever
+4: br-548eee195007: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN group default 
+    link/ether 02:42:1a:71:5a:ec brd ff:ff:ff:ff:ff:ff
+    inet 172.18.0.1/16 brd 172.18.255.255 scope global br-548eee195007
+       valid_lft forever preferred_lft forever
+6: vetheb3ca0a@if5: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
+    link/ether ba:77:f0:fd:15:1e brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet6 fe80::b877:f0ff:fefd:151e/64 scope link 
+       valid_lft forever preferred_lft forever
+8: veth293456e@if7: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
+    link/ether 76:09:79:4f:ca:c8 brd ff:ff:ff:ff:ff:ff link-netnsid 1
+    inet6 fe80::7409:79ff:fe4f:cac8/64 scope link 
+       valid_lft forever preferred_lft forever
+10: vethd0e6192@if9: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
+    link/ether be:6a:e8:b2:79:e8 brd ff:ff:ff:ff:ff:ff link-netnsid 2
+    inet6 fe80::bc6a:e8ff:feb2:79e8/64 scope link 
+       valid_lft forever preferred_lft forever
+12: veth40089f2@if11: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue master docker0 state UP group default 
+    link/ether b2:82:23:22:c1:e7 brd ff:ff:ff:ff:ff:ff link-netnsid 3
+    inet6 fe80::b082:23ff:fe22:c1e7/64 scope link 
+       valid_lft forever preferred_lft forever
+
+===== [11] LISTENING PORTS =====
+Netid State  Recv-Q Send-Q Local Address:Port  Peer Address:PortProcess                                                                                                                                                                                                                                                                                                
+udp   UNCONN 0      0            0.0.0.0:56842      0.0.0.0:*    users:(("avahi-daemon",pid=764,fd=14))                                                                                                                                                                                                                                                                
+udp   UNCONN 0      0            0.0.0.0:68         0.0.0.0:*    users:(("dhclient",pid=1093,fd=8))                                                                                                                                                                                                                                                                    
+udp   UNCONN 0      0            0.0.0.0:111        0.0.0.0:*    users:(("rpcbind",pid=758,fd=5),("systemd",pid=1,fd=80))                                                                                                                                                                                                                                              
+udp   UNCONN 0      0          127.0.0.1:9030       0.0.0.0:*    users:(("monitor",pid=1060,fd=8))                                                                                                                                                                                                                                                                     
+udp   UNCONN 0      0            0.0.0.0:5353       0.0.0.0:*    users:(("avahi-daemon",pid=764,fd=12))                                                                                                                                                                                                                                                                
+udp   UNCONN 0      0               [::]:111           [::]:*    users:(("rpcbind",pid=758,fd=7),("systemd",pid=1,fd=92))                                                                                                                                                                                                                                              
+udp   UNCONN 0      0               [::]:50622         [::]:*    users:(("avahi-daemon",pid=764,fd=15))                                                                                                                                                                                                                                                                
+udp   UNCONN 0      0               [::]:5353          [::]:*    users:(("avahi-daemon",pid=764,fd=13))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      4096         0.0.0.0:111        0.0.0.0:*    users:(("rpcbind",pid=758,fd=4),("systemd",pid=1,fd=78))                                                                                                                                                                                                                                              
+tcp   LISTEN 0      4096         0.0.0.0:8080       0.0.0.0:*    users:(("docker-proxy",pid=2653,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      511          0.0.0.0:80         0.0.0.0:*    users:(("nginx_btwaf_xss",pid=2913125,fd=77),("nginx",pid=2913113,fd=77),("nginx",pid=2913112,fd=77),("nginx",pid=2913111,fd=77),("nginx",pid=2913110,fd=77),("nginx",pid=2913109,fd=77),("nginx",pid=2913108,fd=77),("nginx",pid=2913107,fd=77),("nginx",pid=2913106,fd=77),("nginx",pid=2210,fd=77))
+tcp   LISTEN 0      511          0.0.0.0:23156      0.0.0.0:*    users:(("nginx_btwaf_xss",pid=2913125,fd=76),("nginx",pid=2913113,fd=76),("nginx",pid=2913112,fd=76),("nginx",pid=2913111,fd=76),("nginx",pid=2913110,fd=76),("nginx",pid=2913109,fd=76),("nginx",pid=2913108,fd=76),("nginx",pid=2913107,fd=76),("nginx",pid=2913106,fd=76),("nginx",pid=2210,fd=76))
+tcp   LISTEN 0      9            0.0.0.0:21         0.0.0.0:*    users:(("pure-ftpd",pid=965,fd=4))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      128          0.0.0.0:14299      0.0.0.0:*    users:(("BT-Panel",pid=2237,fd=5))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      511          0.0.0.0:443        0.0.0.0:*    users:(("nginx_btwaf_xss",pid=2913125,fd=78),("nginx",pid=2913113,fd=78),("nginx",pid=2913112,fd=78),("nginx",pid=2913111,fd=78),("nginx",pid=2913110,fd=78),("nginx",pid=2913109,fd=78),("nginx",pid=2913108,fd=78),("nginx",pid=2913107,fd=78),("nginx",pid=2913106,fd=78),("nginx",pid=2210,fd=78))
+tcp   LISTEN 0      511          0.0.0.0:21532      0.0.0.0:*    users:(("nginx_btwaf_xss",pid=2913125,fd=75),("nginx",pid=2913113,fd=75),("nginx",pid=2913112,fd=75),("nginx",pid=2913111,fd=75),("nginx",pid=2913110,fd=75),("nginx",pid=2913109,fd=75),("nginx",pid=2913108,fd=75),("nginx",pid=2913107,fd=75),("nginx",pid=2913106,fd=75),("nginx",pid=2210,fd=75))
+tcp   LISTEN 0      4096         0.0.0.0:801        0.0.0.0:*    users:(("docker-proxy",pid=2592,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      4096         0.0.0.0:802        0.0.0.0:*    users:(("docker-proxy",pid=2563,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      4096         0.0.0.0:803        0.0.0.0:*    users:(("docker-proxy",pid=2614,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      128          0.0.0.0:20708      0.0.0.0:*    users:(("sshd",pid=1086,fd=3))                                                                                                                                                                                                                                                                        
+tcp   LISTEN 0      4096            [::]:111           [::]:*    users:(("rpcbind",pid=758,fd=6),("systemd",pid=1,fd=83))                                                                                                                                                                                                                                              
+tcp   LISTEN 0      4096            [::]:8080          [::]:*    users:(("docker-proxy",pid=2662,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      511             [::]:80            [::]:*    users:(("nginx_btwaf_xss",pid=2913125,fd=79),("nginx",pid=2913113,fd=79),("nginx",pid=2913112,fd=79),("nginx",pid=2913111,fd=79),("nginx",pid=2913110,fd=79),("nginx",pid=2913109,fd=79),("nginx",pid=2913108,fd=79),("nginx",pid=2913107,fd=79),("nginx",pid=2913106,fd=79),("nginx",pid=2210,fd=79))
+tcp   LISTEN 0      4096               *:10001            *:*    users:(("frps",pid=2855067,fd=11))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10002            *:*    users:(("frps",pid=2855067,fd=12))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:20563            *:*    users:(("frps",pid=2855067,fd=13))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10003            *:*    users:(("frps",pid=2855067,fd=10))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10004            *:*    users:(("frps",pid=2855067,fd=15))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10005            *:*    users:(("frps",pid=2855067,fd=16))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      9               [::]:21            [::]:*    users:(("pure-ftpd",pid=965,fd=5))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10006            *:*    users:(("frps",pid=2855067,fd=17))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10007            *:*    users:(("frps",pid=2855067,fd=18))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10008            *:*    users:(("frps",pid=2855067,fd=19))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10009            *:*    users:(("frps",pid=2855067,fd=21))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10041            *:*    users:(("frps",pid=2855067,fd=14))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10042            *:*    users:(("frps",pid=2855067,fd=27))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10010            *:*    users:(("frps",pid=2855067,fd=26))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10043            *:*    users:(("frps",pid=2855067,fd=28))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      511             [::]:443           [::]:*    users:(("nginx_btwaf_xss",pid=2913125,fd=80),("nginx",pid=2913113,fd=80),("nginx",pid=2913112,fd=80),("nginx",pid=2913111,fd=80),("nginx",pid=2913110,fd=80),("nginx",pid=2913109,fd=80),("nginx",pid=2913108,fd=80),("nginx",pid=2913107,fd=80),("nginx",pid=2913106,fd=80),("nginx",pid=2210,fd=80))
+tcp   LISTEN 0      4096               *:10044            *:*    users:(("frps",pid=2855067,fd=29))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10045            *:*    users:(("frps",pid=2855067,fd=22))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10046            *:*    users:(("frps",pid=2855067,fd=23))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:23838            *:*    users:(("frps",pid=2855067,fd=8))                                                                                                                                                                                                                                                                     
+tcp   LISTEN 0      4096               *:10047            *:*    users:(("frps",pid=2855067,fd=24))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096               *:10048            *:*    users:(("frps",pid=2855067,fd=25))                                                                                                                                                                                                                                                                    
+tcp   LISTEN 0      4096            [::]:801           [::]:*    users:(("docker-proxy",pid=2600,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      4096            [::]:802           [::]:*    users:(("docker-proxy",pid=2578,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      4096            [::]:803           [::]:*    users:(("docker-proxy",pid=2620,fd=4))                                                                                                                                                                                                                                                                
+tcp   LISTEN 0      128             [::]:20708         [::]:*    users:(("sshd",pid=1086,fd=4))                                                                                                                                                                                                                                                                        
+tcp   LISTEN 0      4096               *:52391            *:*    users:(("frps",pid=2855067,fd=3))                                                                                                                                                                                                                                                                     
+tcp   LISTEN 0      4096               *:9033             *:*    users:(("monitor",pid=1060,fd=9))                                                                                                                                                                                                                                                                     
+tcp   LISTEN 0      150                *:3306             *:*    users:(("mysqld",pid=2099,fd=32))                                                                                                                                                                                                                                                                     
+tcp   LISTEN 0      4096               *:18123            *:*    users:(("frps",pid=2855067,fd=20))                                                                                                                                                                                                                                                                    
+
+==================== END REPORT ====================
