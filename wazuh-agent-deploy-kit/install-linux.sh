@@ -6,6 +6,11 @@ set -Eeuo pipefail
 # This script installs or reconfigures Wazuh Agent on the CURRENT machine only.
 # It does not read hosts.txt and does not deploy to other machines.
 #
+# Important TrueNAS note:
+#   Do NOT run this on the TrueNAS SCALE host OS. TrueNAS disables apt/package
+#   management on the appliance OS. Install Wazuh Agent in a VM instead, or
+#   forward TrueNAS logs to Wazuh/syslog.
+#
 # Default Wazuh manager:
 #   192.168.30.102
 #
@@ -71,6 +76,74 @@ echo "test_fim       : $TEST_FIM"
 echo "report_dir     : $REPORT_DIR"
 echo "log_file       : $LOG_FILE"
 
+log "Detect OS"
+[[ -r /etc/os-release ]] || fail "无法识别系统：缺少 /etc/os-release"
+# shellcheck disable=SC1091
+. /etc/os-release
+ID_LIKE="${ID_LIKE:-}"
+PRETTY_NAME="${PRETTY_NAME:-$ID ${VERSION_ID:-}}"
+OS_FAMILY="unknown"
+case "${ID}" in
+  ubuntu|debian) OS_FAMILY="debian" ;;
+  rhel|centos|rocky|almalinux|fedora|ol|amzn) OS_FAMILY="rhel" ;;
+  opensuse*|sles) OS_FAMILY="suse" ;;
+  *)
+    if echo "$ID_LIKE" | grep -Eqi 'debian|ubuntu'; then OS_FAMILY="debian";
+    elif echo "$ID_LIKE" | grep -Eqi 'rhel|fedora|centos'; then OS_FAMILY="rhel";
+    elif echo "$ID_LIKE" | grep -Eqi 'suse'; then OS_FAMILY="suse"; fi
+    ;;
+esac
+
+echo "OS             : $PRETTY_NAME"
+echo "OS family      : $OS_FAMILY"
+
+is_truenas=0
+truenas_reason=""
+if [[ -r /etc/version ]] && grep -Eqi 'truenas|scale' /etc/version; then
+  is_truenas=1
+  truenas_reason="/etc/version contains TrueNAS/SCALE"
+elif [[ -r /etc/os-release ]] && grep -Eqi 'truenas|ixsystems' /etc/os-release; then
+  is_truenas=1
+  truenas_reason="/etc/os-release contains TrueNAS/iXsystems"
+elif [[ -e /etc/ix_version || -d /data/ix-applications || -d /var/lib/kubernetes/k3s/agent/etc/containerd/certs.d ]]; then
+  # /data/ix-applications is common on TrueNAS SCALE systems with Apps enabled.
+  is_truenas=1
+  truenas_reason="TrueNAS/SCALE marker path detected"
+fi
+
+if [[ "$is_truenas" == "1" ]]; then
+  log "TrueNAS SCALE host detected"
+  cat <<EOF
+[STOP] This machine appears to be a TrueNAS SCALE appliance host.
+Reason: $truenas_reason
+
+Do not install Wazuh Agent on the TrueNAS host OS with apt/dpkg. TrueNAS disables
+package management on the appliance OS, and forcing package changes can make the
+system nonfunctional or break upgrades.
+
+Recommended options:
+  1. Install Wazuh Agent inside a normal Debian/Ubuntu VM running on TrueNAS.
+  2. Forward TrueNAS syslog/logs to the Wazuh server or another syslog receiver.
+  3. Monitor TrueNAS with its supported interfaces, such as SNMP/syslog/API, and
+     keep Zabbix/Grafana for availability and performance metrics.
+
+This script intentionally exits before changing packages.
+EOF
+  {
+    echo "Wazuh Agent Local Installation Summary"
+    echo "====================================="
+    echo "time           : $(date)"
+    echo "host           : $(hostname -f 2>/dev/null || hostname)"
+    echo "server         : $SERVER"
+    echo "os             : $PRETTY_NAME"
+    echo "result         : skipped"
+    echo "reason         : TrueNAS SCALE host detected; package installation disabled"
+    echo "log_file       : $LOG_FILE"
+  } > "$SUMMARY_FILE"
+  cat "$SUMMARY_FILE"
+  exit 2
+fi
+
 log "Set timezone"
 if have timedatectl; then
   timedatectl set-timezone "$TIMEZONE" || warn "timedatectl set-timezone failed"
@@ -93,25 +166,6 @@ for port in 1514 1515; do
     warn "${SERVER}:${port} not reachable. Check firewall, routing, VLAN/Headscale/Tailscale, and Wazuh manager ports."
   fi
 done
-
-log "Detect OS"
-[[ -r /etc/os-release ]] || fail "无法识别系统：缺少 /etc/os-release"
-# shellcheck disable=SC1091
-. /etc/os-release
-ID_LIKE="${ID_LIKE:-}"
-OS_FAMILY="unknown"
-case "${ID}" in
-  ubuntu|debian) OS_FAMILY="debian" ;;
-  rhel|centos|rocky|almalinux|fedora|ol|amzn) OS_FAMILY="rhel" ;;
-  opensuse*|sles) OS_FAMILY="suse" ;;
-  *)
-    if echo "$ID_LIKE" | grep -Eqi 'debian|ubuntu'; then OS_FAMILY="debian";
-    elif echo "$ID_LIKE" | grep -Eqi 'rhel|fedora|centos'; then OS_FAMILY="rhel";
-    elif echo "$ID_LIKE" | grep -Eqi 'suse'; then OS_FAMILY="suse"; fi
-    ;;
-esac
-echo "OS             : ${PRETTY_NAME:-$ID $VERSION_ID}"
-echo "OS family      : $OS_FAMILY"
 
 install_debian() {
   log "Install Wazuh agent: Debian/Ubuntu/PVE"
@@ -182,7 +236,7 @@ else
     debian) install_debian ;;
     rhel) install_rhel ;;
     suse) install_suse ;;
-    *) fail "暂不支持该系统：${PRETTY_NAME:-$ID}" ;;
+    *) fail "暂不支持该系统：$PRETTY_NAME" ;;
   esac
 fi
 
@@ -439,7 +493,7 @@ log "Write final summary"
   echo "agent_name     : $AGENT_NAME"
   echo "group          : $GROUP"
   echo "timezone       : $TIMEZONE"
-  echo "os             : ${PRETTY_NAME:-$ID $VERSION_ID}"
+  echo "os             : $PRETTY_NAME"
   echo "network_1514   : $network_ok_1514"
   echo "network_1515   : $network_ok_1515"
   echo "enroll         : $ENROLL"
