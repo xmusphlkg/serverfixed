@@ -13,7 +13,7 @@ SERVER=192.168.10.102
 ## One-host Linux install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/tree/main/wazuh-agent-deploy-kit/main/install-linux.sh -o /tmp/install-linux.sh
+curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/refs/heads/main/wazuh-agent-deploy-kit/deploy-ssh.sh -o /tmp/install-linux.sh
 sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
 ```
 
