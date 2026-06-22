@@ -1,71 +1,149 @@
-# Wazuh Agent Deploy Kit
+# Wazuh Agent Local Deploy Kit
 
-This kit installs and configures Wazuh agents on Linux and Windows endpoints.
+This directory contains local installers for Wazuh Agent. Each script installs or reconfigures Wazuh Agent on the current machine only.
 
-## Wazuh manager
+It does not support SSH batch deployment, does not use `hosts.txt`, and does not deploy to remote machines.
 
-Default lab manager example:
+## Default Wazuh manager
 
-```bash
-SERVER=192.168.10.102
+The default manager address is:
+
+```text
+192.168.30.102
 ```
 
-## One-host Linux install
+You can override it with `SERVER` on Linux or `-Server` on Windows.
+
+## Linux local install
+
+Run as root or with sudo:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/refs/heads/main/wazuh-agent-deploy-kit/deploy-ssh.sh -o /tmp/install-linux.sh
-sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
+curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/wazuh-agent-deploy-kit/install-linux.sh -o /tmp/install-linux.sh
+sudo bash /tmp/install-linux.sh
 ```
 
-## One-host Windows install
+Override the Wazuh manager when needed:
+
+```bash
+sudo SERVER=100.64.0.X bash /tmp/install-linux.sh
+```
+
+Optional variables:
+
+```bash
+sudo SERVER=192.168.30.102 \
+  AGENT_NAME=$(hostname -s) \
+  GROUP=default \
+  TIMEZONE=Asia/Shanghai \
+  TEST_FIM=1 \
+  bash /tmp/install-linux.sh
+```
+
+The Linux installer supports Debian, Ubuntu, Proxmox VE, RHEL, Rocky Linux, AlmaLinux, CentOS, and SUSE/openSUSE style systems when the corresponding package manager is available.
+
+## Windows local install
 
 Run PowerShell as Administrator:
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/xmusphlkg/serverfixed/tree/main/wazuh-agent-deploy-kit/main/install-windows.ps1 -OutFile $env:TEMP\install-windows.ps1
-powershell -ExecutionPolicy Bypass -File $env:TEMP\install-windows.ps1 -Server 192.168.10.102
+Invoke-WebRequest https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/wazuh-agent-deploy-kit/install-windows.ps1 -OutFile $env:TEMP\install-windows.ps1
+powershell -ExecutionPolicy Bypass -File $env:TEMP\install-windows.ps1
 ```
 
-## SSH batch deployment
+Override the Wazuh manager when needed:
 
-Prepare `hosts.txt`:
+```powershell
+powershell -ExecutionPolicy Bypass -File $env:TEMP\install-windows.ps1 -Server 100.64.0.X
+```
+
+Optional parameters:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File $env:TEMP\install-windows.ps1 `
+  -Server 192.168.30.102 `
+  -AgentName $env:COMPUTERNAME `
+  -Group default `
+  -TimeZone "China Standard Time" `
+  -TestFim $true
+```
+
+## What Linux configures
+
+- Time zone: `Asia/Shanghai`
+- Wazuh manager: default `192.168.30.102`
+- Protocol: TCP
+- Enrollment check through port `1515` when local `client.keys` is missing
+- FIM monitoring:
+  - `/etc/ssh`
+  - `/etc/sudoers.d`
+  - `/etc/pam.d`
+  - `/etc/cron.d`
+  - `/etc/systemd/system`
+  - `/root/.ssh`
+  - existing `/home/*/.ssh` directories
+  - `/var/spool/cron`
+  - `/dev/shm`
+  - `/tmp`
+  - `/var/tmp`
+- Auth log collection:
+  - `/var/log/auth.log` on Debian/Ubuntu/PVE
+  - `/var/log/secure` on RHEL-style systems
+- Service status, process status, connection details, recent agent log, final summary report
+- Optional FIM create/modify/delete test under `/etc/ssh/sshd_config.d`
+
+## What Windows configures
+
+- Time zone: `China Standard Time`
+- Wazuh manager: default `192.168.30.102`
+- Protocol: TCP
+- Event channels:
+  - `Application`
+  - `Security`
+  - `System`
+- FIM monitoring:
+  - `C:\ProgramData\ssh`
+  - `C:\Windows\System32\drivers\etc`
+  - `C:\Windows\System32\Tasks`
+  - `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup`
+  - existing user `.ssh` directories
+  - existing user Startup directories
+- Service status, process status, connection details, recent agent log, final summary report
+- Optional FIM create/modify/delete test under `C:\ProgramData\ssh`
+
+## Reports
+
+Linux report directory:
 
 ```text
-root@192.168.30.120
-likangguo@192.168.30.121
-Administrator@192.168.3.50
+/var/tmp/wazuh-agent-install-report/
 ```
 
-Run from Linux, macOS, or WSL:
+Windows report directory:
 
-```bash
-SERVER=192.168.10.102 ./deploy-ssh.sh hosts.txt
+```text
+C:\Windows\Temp\wazuh-agent-install-report\
 ```
 
-Windows targets require OpenSSH Server enabled and the SSH user must have Administrator privileges. Linux non-root users need sudo.
-
-## What it configures
-
-Linux:
-- Time zone: Asia/Shanghai
-- Wazuh manager: `$SERVER`
-- Protocol: TCP
-- FIM: `/etc/ssh`, `/etc/sudoers.d`, `/etc/pam.d`, `/etc/cron.d`, `/etc/systemd/system`, `/root/.ssh`, `/var/spool/cron`, `/dev/shm`, `/tmp`, `/var/tmp`
-- Auth logs: `/var/log/auth.log` or `/var/log/secure`
-- Service/process/report output
-- Optional FIM create/modify/delete test
-
-Windows:
-- Time zone: China Standard Time
-- Wazuh manager: `$SERVER`
-- Event channels: Application, Security, System
-- FIM: `C:\ProgramData\ssh`, `C:\Windows\System32\drivers\etc`, `C:\Windows\System32\Tasks`, Startup directories, existing user `.ssh` directories
-- Service/process/report output
-- Optional FIM create/modify/delete test
+Each run creates a full log and a short summary file.
 
 ## Check on Wazuh server
 
+On the Wazuh server `192.168.30.102`, run:
+
 ```bash
 sudo /var/ossec/bin/agent_control -l
-sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|fim|sshd|sudo|wazuh_fim_test'
+sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|fim|sshd|sudo|wazuh_fim_test|authentication'
+```
+
+In the Wazuh Dashboard, use `Last 24 hours` and search for:
+
+```text
+rule.groups:syscheck
+```
+
+or:
+
+```text
+wazuh_fim_test
 ```
