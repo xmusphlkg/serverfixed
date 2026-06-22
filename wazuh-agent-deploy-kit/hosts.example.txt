@@ -1,0 +1,6 @@
+# Linux examples
+root@192.168.30.120
+likangguo@192.168.30.121
+
+# Windows example, requires OpenSSH Server enabled and Administrator privileges
+Administrator@192.168.3.50
