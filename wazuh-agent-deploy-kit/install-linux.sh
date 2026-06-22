@@ -18,6 +18,8 @@ set -Eeuo pipefail
 #   GROUP=default                 Wazuh agent group
 #   TIMEZONE=Asia/Shanghai        System timezone
 #   PROTOCOL=tcp                  Agent-manager protocol
+#   ENROLL=1                      Run local agent-auth enrollment when needed
+#   FORCE_ENROLL=0                Force re-enrollment by backing up client.keys
 #   TEST_FIM=1                    Create/modify/delete a harmless test file under /etc/ssh/sshd_config.d
 #   REPORT_DIR=/var/tmp/wazuh-agent-install-report
 
@@ -26,6 +28,8 @@ AGENT_NAME="${AGENT_NAME:-${WAZUH_AGENT_NAME:-$(hostname -s)}}"
 GROUP="${GROUP:-${WAZUH_AGENT_GROUP:-default}}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 PROTOCOL="${PROTOCOL:-tcp}"
+ENROLL="${ENROLL:-1}"
+FORCE_ENROLL="${FORCE_ENROLL:-0}"
 TEST_FIM="${TEST_FIM:-1}"
 TEST_WAIT="${TEST_WAIT:-8}"
 REPORT_DIR="${REPORT_DIR:-/var/tmp/wazuh-agent-install-report}"
@@ -54,6 +58,8 @@ echo "group          : $GROUP"
 echo "server         : $SERVER"
 echo "protocol       : $PROTOCOL"
 echo "timezone       : $TIMEZONE"
+echo "enroll         : $ENROLL"
+echo "force_enroll   : $FORCE_ENROLL"
 echo "test_fim       : $TEST_FIM"
 echo "report_dir     : $REPORT_DIR"
 echo "log_file       : $LOG_FILE"
@@ -110,7 +116,12 @@ install_debian() {
   chmod 644 /usr/share/keyrings/wazuh.gpg
   echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" > /etc/apt/sources.list.d/wazuh.list
   apt-get update
-  WAZUH_MANAGER="$SERVER" WAZUH_PROTOCOL="$PROTOCOL" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_MANAGER="$SERVER" \
+  WAZUH_PROTOCOL="$PROTOCOL" \
+  WAZUH_AGENT_NAME="$AGENT_NAME" \
+  WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_REGISTRATION_SERVER="$SERVER" \
+  WAZUH_REGISTRATION_PORT="1515" \
     DEBIAN_FRONTEND=noninteractive apt-get install -y wazuh-agent
   sed -i 's/^deb /#deb /' /etc/apt/sources.list.d/wazuh.list || true
   apt-mark hold wazuh-agent || true
@@ -132,7 +143,12 @@ name=EL-$releasever - Wazuh
 baseurl=https://packages.wazuh.com/4.x/yum/
 protect=1
 REPO
-  WAZUH_MANAGER="$SERVER" WAZUH_PROTOCOL="$PROTOCOL" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_MANAGER="$SERVER" \
+  WAZUH_PROTOCOL="$PROTOCOL" \
+  WAZUH_AGENT_NAME="$AGENT_NAME" \
+  WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_REGISTRATION_SERVER="$SERVER" \
+  WAZUH_REGISTRATION_PORT="1515" \
     $pm install -y wazuh-agent
   sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/wazuh.repo || true
 }
@@ -142,7 +158,12 @@ install_suse() {
   zypper --non-interactive install curl ca-certificates gpg2 python3 || true
   rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
   zypper --non-interactive addrepo -g https://packages.wazuh.com/4.x/yum/ wazuh || true
-  WAZUH_MANAGER="$SERVER" WAZUH_PROTOCOL="$PROTOCOL" WAZUH_AGENT_NAME="$AGENT_NAME" WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_MANAGER="$SERVER" \
+  WAZUH_PROTOCOL="$PROTOCOL" \
+  WAZUH_AGENT_NAME="$AGENT_NAME" \
+  WAZUH_AGENT_GROUP="$GROUP" \
+  WAZUH_REGISTRATION_SERVER="$SERVER" \
+  WAZUH_REGISTRATION_PORT="1515" \
     zypper --non-interactive install wazuh-agent
   zypper modifyrepo --disable wazuh || true
 }
@@ -310,6 +331,48 @@ for block in blocks:
 p.write_text(text)
 PY
 
+log "Enrollment check"
+CLIENT_KEYS="/var/ossec/etc/client.keys"
+key_lines=0
+if [[ -s "$CLIENT_KEYS" ]]; then
+  key_lines="$(awk 'NF >= 4 {c++} END {print c+0}' "$CLIENT_KEYS" 2>/dev/null || echo 0)"
+fi
+echo "client_keys     : $CLIENT_KEYS"
+echo "client_key_rows : $key_lines"
+
+if [[ "$FORCE_ENROLL" == "1" ]]; then
+  log "Force enrollment requested"
+  systemctl stop wazuh-agent 2>/dev/null || true
+  if [[ -f "$CLIENT_KEYS" ]]; then
+    cp -a "$CLIENT_KEYS" "${CLIENT_KEYS}.bak.${RUN_ID}"
+    : > "$CLIENT_KEYS"
+    chmod 640 "$CLIENT_KEYS" || true
+  fi
+  key_lines=0
+fi
+
+if [[ "$ENROLL" == "1" && "$key_lines" -eq 0 ]]; then
+  if [[ "$network_ok_1515" != "1" ]]; then
+    warn "Skip agent-auth because ${SERVER}:1515 was not reachable at network test time"
+  elif [[ ! -x /var/ossec/bin/agent-auth ]]; then
+    warn "agent-auth not found or not executable: /var/ossec/bin/agent-auth"
+  else
+    echo "[INFO] No valid local client key found; running agent-auth enrollment..."
+    systemctl stop wazuh-agent 2>/dev/null || true
+    if [[ "$GROUP" != "default" ]]; then
+      /var/ossec/bin/agent-auth -m "$SERVER" -p 1515 -A "$AGENT_NAME" -G "$GROUP" || warn "agent-auth with group failed"
+    else
+      /var/ossec/bin/agent-auth -m "$SERVER" -p 1515 -A "$AGENT_NAME" || warn "agent-auth failed"
+    fi
+    if [[ -s "$CLIENT_KEYS" ]]; then
+      key_lines="$(awk 'NF >= 4 {c++} END {print c+0}' "$CLIENT_KEYS" 2>/dev/null || echo 0)"
+    fi
+    echo "client_key_rows_after_auth : $key_lines"
+  fi
+else
+  echo "[INFO] Existing client key found or ENROLL=0; skip agent-auth. Use FORCE_ENROLL=1 to re-enroll."
+fi
+
 log "Start service"
 systemctl daemon-reload || true
 systemctl enable wazuh-agent
@@ -329,7 +392,7 @@ else
 fi
 
 log "Recent agent log"
-tail -n 180 /var/ossec/logs/ossec.log | egrep -i 'connected|manager|enroll|registration|auth|syscheck|fim|logcollector|error|warning|started|duplicated|real time monitoring|active response' || true
+tail -n 220 /var/ossec/logs/ossec.log | egrep -i 'connected|manager|enroll|registration|auth|agent-auth|key|syscheck|fim|logcollector|error|warning|started|duplicated|real time monitoring|active response' || true
 
 TEST_FILE=""
 if [[ "$TEST_FIM" == "1" ]]; then
@@ -358,6 +421,13 @@ grep -nA90 -B5 'Lab critical security monitoring' /var/ossec/etc/ossec.conf || t
 echo
 echo "Auth log localfile entries:"
 grep -nA4 -B2 '/var/log/auth.log\|/var/log/secure' /var/ossec/etc/ossec.conf || true
+echo
+echo "Client key status:"
+if [[ -s "$CLIENT_KEYS" ]]; then
+  awk '{print "key_line_fields=" NF, "agent_id=" $1, "agent_name=" $2}' "$CLIENT_KEYS" 2>/dev/null || true
+else
+  echo "client.keys is missing or empty"
+fi
 
 log "Write final summary"
 {
@@ -372,6 +442,9 @@ log "Write final summary"
   echo "os             : ${PRETTY_NAME:-$ID $VERSION_ID}"
   echo "network_1514   : $network_ok_1514"
   echo "network_1515   : $network_ok_1515"
+  echo "enroll         : $ENROLL"
+  echo "force_enroll   : $FORCE_ENROLL"
+  echo "client_key_rows: ${key_lines:-0}"
   echo "test_fim       : $TEST_FIM"
   echo "test_file      : ${TEST_FILE:-none}"
   echo "log_file       : $LOG_FILE"
@@ -389,6 +462,7 @@ echo "[OK] Local Wazuh agent deployment finished."
 echo "Full log    : $LOG_FILE"
 echo "Summary     : $SUMMARY_FILE"
 echo
+echo "Important: /var/ossec/logs/alerts/alerts.log exists on the Wazuh server, not on agents."
 echo "Next check on Wazuh server ${SERVER}:"
 echo "  sudo /var/ossec/bin/agent_control -l"
 echo "  sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|fim|wazuh_fim_test|sshd|sudo|authentication'"
