@@ -13,7 +13,7 @@ SERVER=192.168.10.102
 ## One-host Linux install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<your-user>/<your-repo>/main/install-linux.sh -o /tmp/install-linux.sh
+curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/tree/main/wazuh-agent-deploy-kit/main/install-linux.sh -o /tmp/install-linux.sh
 sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
 ```
 
@@ -22,7 +22,7 @@ sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
 Run PowerShell as Administrator:
 
 ```powershell
-Invoke-WebRequest https://raw.githubusercontent.com/<your-user>/<your-repo>/main/install-windows.ps1 -OutFile $env:TEMP\install-windows.ps1
+Invoke-WebRequest https://raw.githubusercontent.com/xmusphlkg/serverfixed/tree/main/wazuh-agent-deploy-kit/main/install-windows.ps1 -OutFile $env:TEMP\install-windows.ps1
 powershell -ExecutionPolicy Bypass -File $env:TEMP\install-windows.ps1 -Server 192.168.10.102
 ```
 
