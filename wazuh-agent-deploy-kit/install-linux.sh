@@ -6,24 +6,33 @@ set -Eeuo pipefail
 # This script installs or reconfigures Wazuh Agent on the CURRENT machine only.
 # It does not read hosts.txt and does not deploy to other machines.
 #
+# Default Wazuh manager:
+#   192.168.30.102
+#
 # Basic usage:
-#   sudo SERVER=192.168.10.102 bash install-linux.sh
+#   sudo bash install-linux.sh
+#
+# Override manager when needed:
+#   sudo SERVER=100.64.0.X bash install-linux.sh
+#   sudo bash install-linux.sh 100.64.0.X
 #
 # One-line GitHub usage:
 #   curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/wazuh-agent-deploy-kit/install-linux.sh -o /tmp/install-linux.sh
-#   sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
+#   sudo bash /tmp/install-linux.sh
 #
 # Optional variables:
-#   AGENT_NAME=$(hostname -s)     Wazuh agent name
-#   GROUP=default                 Wazuh agent group
-#   TIMEZONE=Asia/Shanghai        System timezone
-#   PROTOCOL=tcp                  Agent-manager protocol
-#   ENROLL=1                      Run local agent-auth enrollment when needed
-#   FORCE_ENROLL=0                Force re-enrollment by backing up client.keys
-#   TEST_FIM=1                    Create/modify/delete a harmless test file under /etc/ssh/sshd_config.d
+#   SERVER=192.168.30.102       Wazuh manager address
+#   AGENT_NAME=$(hostname -s)   Wazuh agent name
+#   GROUP=default               Wazuh agent group
+#   TIMEZONE=Asia/Shanghai      System timezone
+#   PROTOCOL=tcp                Agent-manager protocol
+#   ENROLL=1                    Run agent-auth enrollment when local key is missing
+#   FORCE_ENROLL=0              Force re-enrollment by backing up client.keys
+#   TEST_FIM=1                  Create/modify/delete a harmless test file
 #   REPORT_DIR=/var/tmp/wazuh-agent-install-report
 
-SERVER="${SERVER:-${WAZUH_MANAGER:-${1:-}}}"
+DEFAULT_SERVER="192.168.30.102"
+SERVER="${SERVER:-${WAZUH_MANAGER:-${1:-$DEFAULT_SERVER}}}"
 AGENT_NAME="${AGENT_NAME:-${WAZUH_AGENT_NAME:-$(hostname -s)}}"
 GROUP="${GROUP:-${WAZUH_AGENT_GROUP:-default}}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
@@ -42,12 +51,10 @@ warn() { echo "[WARN] $*" >&2; }
 fail() { echo "[ERROR] $*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-[[ -n "$SERVER" ]] || fail "SERVER 未设置。示例：sudo SERVER=192.168.10.102 bash install-linux.sh"
-[[ "$(id -u)" -eq 0 ]] || fail "请用 root 运行：sudo SERVER=${SERVER} bash install-linux.sh"
+[[ "$(id -u)" -eq 0 ]] || fail "请用 root 运行：sudo bash install-linux.sh"
 
 mkdir -p "$REPORT_DIR"
 exec > >(tee -a "$LOG_FILE") 2>&1
-
 trap 'echo; echo "[ERROR] Script failed at line ${LINENO}. Full log: ${LOG_FILE}" >&2' ERR
 
 log "Basic information"
@@ -80,8 +87,8 @@ network_ok_1515=0
 for port in 1514 1515; do
   if timeout 4 bash -c "cat < /dev/null > /dev/tcp/${SERVER}/${port}" 2>/dev/null; then
     echo "[OK] ${SERVER}:${port} reachable"
-    if [[ "$port" == "1514" ]]; then network_ok_1514=1; fi
-    if [[ "$port" == "1515" ]]; then network_ok_1515=1; fi
+    [[ "$port" == "1514" ]] && network_ok_1514=1
+    [[ "$port" == "1515" ]] && network_ok_1515=1
   else
     warn "${SERVER}:${port} not reachable. Check firewall, routing, VLAN/Headscale/Tailscale, and Wazuh manager ports."
   fi
@@ -194,12 +201,8 @@ server, protocol = sys.argv[1], sys.argv[2]
 p = Path('/var/ossec/etc/ossec.conf')
 text = p.read_text()
 
-# Remove misplaced or incompatible alert_new_files entries from earlier manual experiments.
-# In Wazuh 4.x this tag must not be placed under syscollector; to keep this installer safe,
-# we remove it and rely on default syscheck events for add/modify/delete.
 text = re.sub(r'\n\s*<alert_new_files>yes</alert_new_files>\s*', '\n', text)
 
-# Client manager config.
 def fix_client(m):
     block = m.group(0)
     if '<address>' in block:
@@ -235,8 +238,6 @@ else:
 '''
     text = text.replace('</ossec_config>', client_block + '\n</ossec_config>')
 
-# FIM block. Keep content diff only for selected configuration directories.
-# Avoid report_changes for keys/shadow/tmp to prevent leaking sensitive contents and reduce noise.
 syscheck_extra = '''
     <!-- Lab critical security monitoring: installed by install-linux.sh -->
     <directories check_all="yes" report_changes="yes" realtime="yes">/etc/ssh</directories>
@@ -299,7 +300,6 @@ else:
         return block
     text = re.sub(r'<syscheck>.*?</syscheck>', fix_syscheck, text, count=1, flags=re.S)
 
-# Ensure auth logs. Deduplicate localfile entries by location.
 def add_localfile(path, fmt='syslog'):
     global text
     if path in text:
