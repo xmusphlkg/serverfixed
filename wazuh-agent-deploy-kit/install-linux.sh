@@ -1,53 +1,83 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Wazuh Agent Linux installer for lab deployment
-# Usage:
+# Wazuh Agent Linux local installer for the lab environment.
+#
+# This script installs or reconfigures Wazuh Agent on the CURRENT machine only.
+# It does not read hosts.txt and does not deploy to other machines.
+#
+# Basic usage:
 #   sudo SERVER=192.168.10.102 bash install-linux.sh
+#
+# One-line GitHub usage:
+#   curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/wazuh-agent-deploy-kit/install-linux.sh -o /tmp/install-linux.sh
+#   sudo SERVER=192.168.10.102 bash /tmp/install-linux.sh
+#
 # Optional variables:
-#   AGENT_NAME=$(hostname -s) GROUP=default TIMEZONE=Asia/Shanghai TEST_FIM=1
+#   AGENT_NAME=$(hostname -s)     Wazuh agent name
+#   GROUP=default                 Wazuh agent group
+#   TIMEZONE=Asia/Shanghai        System timezone
+#   PROTOCOL=tcp                  Agent-manager protocol
+#   TEST_FIM=1                    Create/modify/delete a harmless test file under /etc/ssh/sshd_config.d
+#   REPORT_DIR=/var/tmp/wazuh-agent-install-report
 
-SERVER="${SERVER:-${WAZUH_MANAGER:-}}"
+SERVER="${SERVER:-${WAZUH_MANAGER:-${1:-}}}"
 AGENT_NAME="${AGENT_NAME:-${WAZUH_AGENT_NAME:-$(hostname -s)}}"
 GROUP="${GROUP:-${WAZUH_AGENT_GROUP:-default}}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 PROTOCOL="${PROTOCOL:-tcp}"
 TEST_FIM="${TEST_FIM:-1}"
+TEST_WAIT="${TEST_WAIT:-8}"
 REPORT_DIR="${REPORT_DIR:-/var/tmp/wazuh-agent-install-report}"
+RUN_ID="$(date +%F_%H%M%S)"
+LOG_FILE="${REPORT_DIR}/install-${RUN_ID}.log"
+SUMMARY_FILE="${REPORT_DIR}/summary-${RUN_ID}.txt"
 
 log() { echo; echo "========== $* =========="; }
 warn() { echo "[WARN] $*" >&2; }
 fail() { echo "[ERROR] $*" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
 [[ -n "$SERVER" ]] || fail "SERVER 未设置。示例：sudo SERVER=192.168.10.102 bash install-linux.sh"
-[[ "$(id -u)" -eq 0 ]] || fail "请用 root 运行，或使用：sudo SERVER=$SERVER bash install-linux.sh"
+[[ "$(id -u)" -eq 0 ]] || fail "请用 root 运行：sudo SERVER=${SERVER} bash install-linux.sh"
 
 mkdir -p "$REPORT_DIR"
-exec > >(tee -a "$REPORT_DIR/install-$(date +%F_%H%M%S).log") 2>&1
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+trap 'echo; echo "[ERROR] Script failed at line ${LINENO}. Full log: ${LOG_FILE}" >&2' ERR
 
 log "Basic information"
+echo "mode           : local single-host installer"
 echo "hostname       : $(hostname -f 2>/dev/null || hostname)"
 echo "agent_name     : $AGENT_NAME"
 echo "group          : $GROUP"
 echo "server         : $SERVER"
 echo "protocol       : $PROTOCOL"
 echo "timezone       : $TIMEZONE"
+echo "test_fim       : $TEST_FIM"
 echo "report_dir     : $REPORT_DIR"
+echo "log_file       : $LOG_FILE"
 
 log "Set timezone"
-if command -v timedatectl >/dev/null 2>&1; then
+if have timedatectl; then
   timedatectl set-timezone "$TIMEZONE" || warn "timedatectl set-timezone failed"
   timedatectl set-ntp true || true
+else
+  warn "timedatectl not found; skip timezone configuration"
 fi
 date
 timedatectl 2>/dev/null || true
 
 log "Network test to Wazuh manager"
+network_ok_1514=0
+network_ok_1515=0
 for port in 1514 1515; do
   if timeout 4 bash -c "cat < /dev/null > /dev/tcp/${SERVER}/${port}" 2>/dev/null; then
-    echo "[OK] $SERVER:$port reachable"
+    echo "[OK] ${SERVER}:${port} reachable"
+    if [[ "$port" == "1514" ]]; then network_ok_1514=1; fi
+    if [[ "$port" == "1515" ]]; then network_ok_1515=1; fi
   else
-    warn "$SERVER:$port not reachable. Check firewall, routing, VLAN/Headscale/Tailscale, and Wazuh manager ports."
+    warn "${SERVER}:${port} not reachable. Check firewall, routing, VLAN/Headscale/Tailscale, and Wazuh manager ports."
   fi
 done
 
@@ -75,7 +105,8 @@ install_debian() {
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y curl gnupg apt-transport-https ca-certificates lsb-release python3
   install -d -m 0755 /usr/share/keyrings
-  curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --dearmor -o /usr/share/keyrings/wazuh.gpg
+  curl -fsSL https://packages.wazuh.com/key/GPG-KEY-WAZUH -o /tmp/GPG-KEY-WAZUH
+  gpg --dearmor --yes -o /usr/share/keyrings/wazuh.gpg /tmp/GPG-KEY-WAZUH
   chmod 644 /usr/share/keyrings/wazuh.gpg
   echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" > /etc/apt/sources.list.d/wazuh.list
   apt-get update
@@ -89,7 +120,7 @@ install_debian() {
 install_rhel() {
   log "Install Wazuh agent: RHEL/Rocky/Alma/CentOS"
   local pm=""
-  if command -v dnf >/dev/null 2>&1; then pm="dnf"; elif command -v yum >/dev/null 2>&1; then pm="yum"; else fail "找不到 dnf/yum"; fi
+  if have dnf; then pm="dnf"; elif have yum; then pm="yum"; else fail "找不到 dnf/yum"; fi
   $pm install -y curl ca-certificates gnupg python3 || true
   rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
   cat > /etc/yum.repos.d/wazuh.repo <<'REPO'
@@ -116,8 +147,8 @@ install_suse() {
   zypper modifyrepo --disable wazuh || true
 }
 
-if command -v /var/ossec/bin/wazuh-control >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^wazuh-agent'; then
-  log "Wazuh agent already installed; will reconfigure and restart"
+if have /var/ossec/bin/wazuh-control || systemctl list-unit-files 2>/dev/null | grep -q '^wazuh-agent'; then
+  log "Wazuh agent already installed; reconfigure and restart only"
 else
   case "$OS_FAMILY" in
     debian) install_debian ;;
@@ -128,7 +159,9 @@ else
 fi
 
 log "Configure ossec.conf"
-mkdir -p /root/.ssh
+[[ -f /var/ossec/etc/ossec.conf ]] || fail "找不到 /var/ossec/etc/ossec.conf，Wazuh agent 安装可能失败"
+cp -a /var/ossec/etc/ossec.conf "/var/ossec/etc/ossec.conf.bak.${RUN_ID}"
+mkdir -p /root/.ssh /etc/ssh/sshd_config.d
 chmod 700 /root/.ssh || true
 
 python3 - "$SERVER" "$PROTOCOL" <<'PY'
@@ -140,7 +173,9 @@ server, protocol = sys.argv[1], sys.argv[2]
 p = Path('/var/ossec/etc/ossec.conf')
 text = p.read_text()
 
-# Remove misplaced alert_new_files from earlier manual experiments; keep config compatible.
+# Remove misplaced or incompatible alert_new_files entries from earlier manual experiments.
+# In Wazuh 4.x this tag must not be placed under syscollector; to keep this installer safe,
+# we remove it and rely on default syscheck events for add/modify/delete.
 text = re.sub(r'\n\s*<alert_new_files>yes</alert_new_files>\s*', '\n', text)
 
 # Client manager config.
@@ -179,7 +214,8 @@ else:
 '''
     text = text.replace('</ossec_config>', client_block + '\n</ossec_config>')
 
-# FIM block. Avoid report_changes for keys/shadow/tmp to prevent leaking sensitive contents and reduce noise.
+# FIM block. Keep content diff only for selected configuration directories.
+# Avoid report_changes for keys/shadow/tmp to prevent leaking sensitive contents and reduce noise.
 syscheck_extra = '''
     <!-- Lab critical security monitoring: installed by install-linux.sh -->
     <directories check_all="yes" report_changes="yes" realtime="yes">/etc/ssh</directories>
@@ -283,21 +319,34 @@ sleep 5
 log "Service and process status"
 /var/ossec/bin/wazuh-control status || true
 systemctl status wazuh-agent --no-pager || true
-ps -eo pid,ppid,user,comm,args --sort=comm | egrep 'wazuh|ossec' | grep -v egrep || true
+ps -eo pid,ppid,user,%cpu,%mem,etime,comm,args --sort=comm | egrep 'wazuh|ossec' | grep -v egrep || true
+
+log "Connection/process/network details"
+if have ss; then
+  ss -ntp 2>/dev/null | egrep '(:1514|:1515)' || true
+else
+  warn "ss not found; skip socket details"
+fi
 
 log "Recent agent log"
-tail -n 160 /var/ossec/logs/ossec.log | egrep -i 'connected|manager|enroll|registration|auth|syscheck|fim|logcollector|error|warning|started|duplicated|real time monitoring' || true
+tail -n 180 /var/ossec/logs/ossec.log | egrep -i 'connected|manager|enroll|registration|auth|syscheck|fim|logcollector|error|warning|started|duplicated|real time monitoring|active response' || true
 
+TEST_FILE=""
 if [[ "$TEST_FIM" == "1" ]]; then
   log "FIM local test"
   mkdir -p /etc/ssh/sshd_config.d
-  TEST_FILE="/etc/ssh/sshd_config.d/wazuh_fim_test_$(date +%s).conf"
+  TEST_FILE="/etc/ssh/sshd_config.d/wazuh_fim_test_${RUN_ID}.conf"
   echo "# wazuh fim create test $(date)" > "$TEST_FILE"
-  sleep 3
+  sleep "$TEST_WAIT"
   echo "# wazuh fim modify test $(date)" >> "$TEST_FILE"
-  sleep 3
+  sleep "$TEST_WAIT"
   rm -f "$TEST_FILE"
-  echo "[OK] Created, modified, and deleted $TEST_FILE. Check Wazuh server alerts.log or Dashboard for syscheck events."
+  sleep "$TEST_WAIT"
+  echo "[OK] Created, modified, and deleted $TEST_FILE"
+  echo "[INFO] On Wazuh server, check syscheck events with:"
+  echo "       sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|fim|wazuh_fim_test|sshd_config'"
+else
+  echo "[INFO] TEST_FIM=0, skip FIM create/modify/delete test"
 fi
 
 log "Configuration summary"
@@ -306,9 +355,40 @@ grep -nA14 -B2 '<client>' /var/ossec/etc/ossec.conf || true
 echo
 echo "Lab FIM block:"
 grep -nA90 -B5 'Lab critical security monitoring' /var/ossec/etc/ossec.conf || true
+echo
+echo "Auth log localfile entries:"
+grep -nA4 -B2 '/var/log/auth.log\|/var/log/secure' /var/ossec/etc/ossec.conf || true
+
+log "Write final summary"
+{
+  echo "Wazuh Agent Local Installation Summary"
+  echo "====================================="
+  echo "time           : $(date)"
+  echo "host           : $(hostname -f 2>/dev/null || hostname)"
+  echo "server         : $SERVER"
+  echo "agent_name     : $AGENT_NAME"
+  echo "group          : $GROUP"
+  echo "timezone       : $TIMEZONE"
+  echo "os             : ${PRETTY_NAME:-$ID $VERSION_ID}"
+  echo "network_1514   : $network_ok_1514"
+  echo "network_1515   : $network_ok_1515"
+  echo "test_fim       : $TEST_FIM"
+  echo "test_file      : ${TEST_FILE:-none}"
+  echo "log_file       : $LOG_FILE"
+  echo
+  echo "wazuh-control status:"
+  /var/ossec/bin/wazuh-control status 2>/dev/null || true
+  echo
+  echo "processes:"
+  ps -eo pid,ppid,user,%cpu,%mem,etime,comm,args --sort=comm | egrep 'wazuh|ossec' | grep -v egrep || true
+} > "$SUMMARY_FILE"
+cat "$SUMMARY_FILE"
 
 echo
-log "Final result"
-echo "[OK] Linux Wazuh agent install/config completed."
-echo "On Wazuh server, run: sudo /var/ossec/bin/agent_control -l"
-echo "On Wazuh server, test alerts: sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|sshd|sudo|fim'"
+echo "[OK] Local Wazuh agent deployment finished."
+echo "Full log    : $LOG_FILE"
+echo "Summary     : $SUMMARY_FILE"
+echo
+echo "Next check on Wazuh server ${SERVER}:"
+echo "  sudo /var/ossec/bin/agent_control -l"
+echo "  sudo tail -n 500 /var/ossec/logs/alerts/alerts.log | egrep -i 'syscheck|fim|wazuh_fim_test|sshd|sudo|authentication'"
