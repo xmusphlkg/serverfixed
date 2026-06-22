@@ -14,6 +14,20 @@ The default manager address is:
 
 You can override it with `SERVER` on Linux or `-Server` on Windows.
 
+## Important: TrueNAS SCALE host OS is not supported
+
+Do not run the Linux installer on the TrueNAS SCALE appliance host OS.
+
+TrueNAS SCALE is Debian-based, but its appliance OS disables package management tools such as `apt`. Installing packages directly on the host OS can break the system or future upgrades.
+
+For TrueNAS monitoring, use one of these safer approaches:
+
+1. Install Wazuh Agent inside a normal Debian/Ubuntu VM running on TrueNAS.
+2. Forward TrueNAS syslog/logs to Wazuh or another syslog receiver.
+3. Monitor TrueNAS using supported interfaces such as SNMP/syslog/API, and keep Zabbix/Grafana for performance and availability metrics.
+
+The Linux installer detects common TrueNAS/SCALE markers and exits before package installation.
+
 ## Linux local install
 
 Run as root or with sudo:
