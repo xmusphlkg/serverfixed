@@ -60,7 +60,22 @@ sudo_cmd() {
 }
 
 apt_run() {
-  sudo_cmd DEBIAN_FRONTEND=noninteractive apt-get "$@"
+  sudo_cmd env DEBIAN_FRONTEND=noninteractive apt-get "$@"
+}
+
+prepare_logging() {
+  sudo_cmd mkdir -p "$REPORT_DIR"
+
+  if [[ "$(id -u)" -ne 0 ]]; then
+    sudo_cmd chown "$(id -u):$(id -g)" "$REPORT_DIR" 2>/dev/null || true
+  fi
+
+  if ! touch "$LOG_FILE" "$SUMMARY_FILE" 2>/dev/null; then
+    sudo_cmd touch "$LOG_FILE" "$SUMMARY_FILE"
+    sudo_cmd chmod 0666 "$LOG_FILE" "$SUMMARY_FILE"
+  fi
+
+  exec > >(tee -a "$LOG_FILE") 2>&1
 }
 
 set_conf() {
@@ -205,10 +220,7 @@ main() {
     sudo -v || fail "sudo authentication failed"
   fi
 
-  sudo_cmd mkdir -p "$REPORT_DIR"
-  sudo_cmd touch "$LOG_FILE" "$SUMMARY_FILE"
-  sudo_cmd chmod 0644 "$LOG_FILE" "$SUMMARY_FILE"
-  exec > >(tee -a "$LOG_FILE") 2>&1
+  prepare_logging
   trap 'echo; echo "[ERROR] Script failed at line ${LINENO}. Full log: ${LOG_FILE}" >&2' ERR
 
   log "Basic information"
@@ -337,7 +349,7 @@ Next step in Zabbix frontend:
 - Port: 10050
 - Template: Linux by Zabbix agent or Linux by Zabbix agent active
 SUMMARY
-  sudo_cmd cp /tmp/zabbix-agent2-summary.txt "$SUMMARY_FILE"
+  cp /tmp/zabbix-agent2-summary.txt "$SUMMARY_FILE" 2>/dev/null || sudo_cmd cp /tmp/zabbix-agent2-summary.txt "$SUMMARY_FILE"
   rm -f /tmp/zabbix-agent2-summary.txt
 
   log "Finished"
