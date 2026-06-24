@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # serverfixed Linux 初始化脚本
-# 功能：自动识别 Debian/Ubuntu/PVE，测速选择中国境内 apt mirror，更新系统，启用 SSH，新建管理员用户并配置 sudo/SSH。
+# 功能：自动识别 Debian/Ubuntu/PVE，测试中国境内 apt mirror，更新系统，启用 SSH，新建管理员用户并配置 sudo/SSH。
+# 设计原则：先备份、再修改；尽量不破坏第三方源；所有可选步骤失败时给出清晰提示。
 
 set -Eeuo pipefail
 
@@ -12,6 +13,7 @@ MIRROR_REPEAT="${MIRROR_REPEAT:-2}"
 SSH_PASSWORD_AUTH="${SSH_PASSWORD_AUTH:-yes}"
 SSH_ROOT_LOGIN="${SSH_ROOT_LOGIN:-prohibit-password}"
 PVE_FIX_REPOS="${PVE_FIX_REPOS:-1}"
+FORCE_IPV4_APT="${FORCE_IPV4_APT:-1}"
 LOG_FILE="${LOG_FILE:-/var/log/serverfixed-init.log}"
 
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -24,6 +26,8 @@ APT_FAMILY=""
 SELECTED_MIRROR_NAME=""
 SELECTED_MIRROR_URL=""
 SELECTED_SECURITY_URL=""
+APT_BACKUP_DIR=""
+APT_DISABLED_DIR=""
 
 log() { printf '[%s] %s\n' "$(date '+%F %T')" "$*"; }
 warn() { printf '[%s] WARN: %s\n' "$(date '+%F %T')" "$*" >&2; }
@@ -31,7 +35,7 @@ fatal() { printf '[%s] ERROR: %s\n' "$(date '+%F %T')" "$*" >&2; exit 1; }
 
 on_error() {
   local exit_code=$?
-  warn "脚本在第 ${BASH_LINENO[0]} 行失败，退出码：${exit_code}。请查看日志：${LOG_FILE}"
+  warn "脚本在第 ${BASH_LINENO[0]} 行附近失败，退出码：${exit_code}。请查看日志：${LOG_FILE}"
   exit "$exit_code"
 }
 trap on_error ERR
@@ -42,16 +46,18 @@ usage() {
   sudo bash linux_init_cn.sh
 
 常用环境变量：
-  INIT_USER=likangguo          要创建/配置的管理员用户名
-  RUN_UPGRADE=1               apt update 后是否执行 apt upgrade；设为 0 可跳过
-  MIRROR_FORCE=URL            跳过测速，强制使用指定 apt mirror，例如 https://mirrors.ustc.edu.cn/debian
-  SSH_PASSWORD_AUTH=yes       是否允许 SSH 密码登录，首次初始化建议 yes，稳定后可改 no
+  INIT_USER=likangguo              要创建/配置的管理员用户名
+  RUN_UPGRADE=1                   apt update 后是否执行 apt upgrade；设为 0 可跳过
+  MIRROR_FORCE=URL                跳过测速，强制使用指定 apt mirror，例如 https://mirrors.ustc.edu.cn/ubuntu
+  SSH_PASSWORD_AUTH=yes           是否允许 SSH 密码登录，首次初始化建议 yes，稳定后可改 no
   SSH_ROOT_LOGIN=prohibit-password  root SSH 登录策略：no / prohibit-password / yes
-  PVE_FIX_REPOS=1             Proxmox VE 上自动禁用 enterprise 源并添加 no-subscription 源
+  PVE_FIX_REPOS=1                 Proxmox VE 上自动禁用 enterprise 源并添加 no-subscription 源
+  FORCE_IPV4_APT=1                为 apt 写入 IPv4 优先和超时配置，避免 IPv6 路由异常卡住
 
 示例：
-  curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/linux_init_cn.sh | sudo bash
+  sudo bash linux_init_cn.sh
   INIT_USER=likangguo RUN_UPGRADE=0 sudo bash linux_init_cn.sh
+  MIRROR_FORCE=https://mirrors.ustc.edu.cn/ubuntu RUN_UPGRADE=0 sudo bash linux_init_cn.sh
 USAGE
 }
 
@@ -85,7 +91,7 @@ load_os_info() {
     OS_CODENAME="$(lsb_release -sc 2>/dev/null || true)"
   fi
 
-  if [[ -z "$OS_CODENAME" && -r /etc/debian_version ]]; then
+  if [[ -z "$OS_CODENAME" ]] && [[ -r /etc/debian_version ]]; then
     case "$(cut -d. -f1 /etc/debian_version 2>/dev/null || true)" in
       13) OS_CODENAME="trixie" ;;
       12) OS_CODENAME="bookworm" ;;
@@ -104,6 +110,10 @@ load_os_info() {
   fi
 
   log "识别系统：${OS_NAME}，ID=${OS_ID}，VERSION=${OS_VERSION}，CODENAME=${OS_CODENAME:-unknown}，APT_FAMILY=${APT_FAMILY:-none}"
+
+  if [[ "$OS_ID" == "ubuntu" && "$OS_CODENAME" == "plucky" ]]; then
+    warn "检测到 Ubuntu 25.04/plucky。该版本是短周期版本，若 apt 仓库不可用，建议升级到受支持版本或改用 old-releases 源。"
+  fi
 }
 
 probe_url() {
@@ -128,6 +138,16 @@ probe_url() {
 choose_fastest_mirror() {
   [[ -n "$APT_FAMILY" ]] || return 0
   [[ -n "$OS_CODENAME" ]] || fatal "无法识别发行版 codename，不能安全改写 apt 源。"
+
+  if [[ -n "$MIRROR_FORCE" ]]; then
+    SELECTED_MIRROR_NAME="forced"
+    SELECTED_MIRROR_URL="${MIRROR_FORCE%/}"
+    if [[ "$APT_FAMILY" == "debian" ]]; then
+      SELECTED_SECURITY_URL="$(printf '%s' "$SELECTED_MIRROR_URL" | sed 's#/debian$#/debian-security#')"
+    fi
+    log "已通过 MIRROR_FORCE 强制使用 mirror：${SELECTED_MIRROR_URL}"
+    return 0
+  fi
 
   local candidates=()
   if [[ "$APT_FAMILY" == "ubuntu" ]]; then
@@ -154,13 +174,16 @@ choose_fastest_mirror() {
     )
   fi
 
-  if [[ -n "$MIRROR_FORCE" ]]; then
-    SELECTED_MIRROR_NAME="forced"
-    SELECTED_MIRROR_URL="${MIRROR_FORCE%/}"
-    if [[ "$APT_FAMILY" == "debian" ]]; then
-      SELECTED_SECURITY_URL="$(printf '%s' "$SELECTED_MIRROR_URL" | sed 's#/debian$#/debian-security#')"
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+    warn "未检测到 curl/wget，无法测速；将使用 USTC 作为默认国内源。"
+    if [[ "$APT_FAMILY" == "ubuntu" ]]; then
+      SELECTED_MIRROR_NAME="USTC-default"
+      SELECTED_MIRROR_URL="https://mirrors.ustc.edu.cn/ubuntu"
+    else
+      SELECTED_MIRROR_NAME="USTC-default"
+      SELECTED_MIRROR_URL="https://mirrors.ustc.edu.cn/debian"
+      SELECTED_SECURITY_URL="https://mirrors.ustc.edu.cn/debian-security"
     fi
-    log "已通过 MIRROR_FORCE 强制使用 mirror：${SELECTED_MIRROR_URL}"
     return 0
   fi
 
@@ -174,6 +197,7 @@ choose_fastest_mirror() {
     probe="${base}/dists/${OS_CODENAME}/InRelease"
     total="0"
     success=0
+
     for _ in $(seq 1 "$MIRROR_REPEAT"); do
       t="$(probe_url "$probe" || true)"
       if [[ "$t" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
@@ -181,6 +205,7 @@ choose_fastest_mirror() {
         success=$((success + 1))
       fi
     done
+
     if [[ "$success" -gt 0 ]]; then
       avg="$(awk -v a="$total" -v n="$success" 'BEGIN { printf "%.3f", a/n }')"
       log "mirror ${name}: ${avg}s (${success}/${MIRROR_REPEAT})"
@@ -195,37 +220,104 @@ choose_fastest_mirror() {
     fi
   done
 
-  [[ -n "$best_url" ]] || fatal "所有 mirror 测试失败。可尝试设置 MIRROR_FORCE 手动指定。"
+  if [[ -z "$best_url" ]]; then
+    warn "所有 mirror 测试失败，将使用 USTC 作为兜底源。也可用 MIRROR_FORCE 手动指定。"
+    if [[ "$APT_FAMILY" == "ubuntu" ]]; then
+      best_name="USTC-fallback"
+      best_url="https://mirrors.ustc.edu.cn/ubuntu"
+      best_sec=""
+    else
+      best_name="USTC-fallback"
+      best_url="https://mirrors.ustc.edu.cn/debian"
+      best_sec="https://mirrors.ustc.edu.cn/debian-security"
+    fi
+  fi
+
   SELECTED_MIRROR_NAME="$best_name"
   SELECTED_MIRROR_URL="$best_url"
   SELECTED_SECURITY_URL="$best_sec"
-  log "选择最快 mirror：${SELECTED_MIRROR_NAME} -> ${SELECTED_MIRROR_URL}，平均 ${best_score}s"
+  log "选择 mirror：${SELECTED_MIRROR_NAME} -> ${SELECTED_MIRROR_URL}${best_score:+，平均 ${best_score}s}"
 }
 
 backup_apt_sources() {
   [[ -d /etc/apt ]] || return 0
-  local backup_dir="/etc/apt/serverfixed-backup-${TS}"
-  mkdir -p "$backup_dir"
-  [[ -f /etc/apt/sources.list ]] && cp -a /etc/apt/sources.list "$backup_dir/"
-  [[ -d /etc/apt/sources.list.d ]] && cp -a /etc/apt/sources.list.d "$backup_dir/" || true
-  log "已备份 apt 源到：${backup_dir}"
+  APT_BACKUP_DIR="/etc/apt/serverfixed-backup-${TS}"
+  mkdir -p "$APT_BACKUP_DIR"
+
+  if [[ -f /etc/apt/sources.list ]]; then
+    cp -a /etc/apt/sources.list "$APT_BACKUP_DIR/" || warn "备份 /etc/apt/sources.list 失败，继续执行。"
+  fi
+
+  if [[ -d /etc/apt/sources.list.d ]]; then
+    mkdir -p "$APT_BACKUP_DIR/sources.list.d"
+    cp -a /etc/apt/sources.list.d/. "$APT_BACKUP_DIR/sources.list.d/" || warn "备份 /etc/apt/sources.list.d 失败，继续执行。"
+  fi
+
+  log "已备份 apt 源到：${APT_BACKUP_DIR}"
+}
+
+disable_file_if_exists() {
+  local src="$1"
+  local dst_dir="$2"
+  local base
+  base="$(basename "$src")"
+  if [[ -e "$src" ]]; then
+    mv -f "$src" "${dst_dir}/${base}.disabled-${TS}" || fatal "移动 ${src} 失败。"
+    log "已禁用旧系统源：${src}"
+  fi
+}
+
+cleanup_invalid_apt_filenames() {
+  [[ -d /etc/apt/sources.list.d ]] || return 0
+  APT_DISABLED_DIR="/etc/apt/serverfixed-disabled-${TS}"
+  mkdir -p "$APT_DISABLED_DIR"
+
+  shopt -s nullglob
+  local f base
+  for f in /etc/apt/sources.list.d/*.bak* \
+           /etc/apt/sources.list.d/*.disabled* \
+           /etc/apt/sources.list.d/*.save \
+           /etc/apt/sources.list.d/*.distUpgrade; do
+    if [[ -e "$f" ]]; then
+      base="$(basename "$f")"
+      mv -f "$f" "${APT_DISABLED_DIR}/${base}" || warn "移动无效 apt 文件名失败：${f}"
+      log "已移出 apt 会提示忽略的文件：${f}"
+    fi
+  done
+  shopt -u nullglob
 }
 
 disable_default_apt_source_files() {
-  [[ -f /etc/apt/sources.list ]] && mv /etc/apt/sources.list "/etc/apt/sources.list.serverfixed.bak.${TS}"
-  for f in /etc/apt/sources.list.d/debian.sources \
-           /etc/apt/sources.list.d/ubuntu.sources \
-           /etc/apt/sources.list.d/raspi.sources \
-           /etc/apt/sources.list.d/raspi.list; do
-    [[ -e "$f" ]] && mv "$f" "${f}.serverfixed.bak.${TS}"
-  done
+  APT_DISABLED_DIR="${APT_DISABLED_DIR:-/etc/apt/serverfixed-disabled-${TS}}"
+  mkdir -p "$APT_DISABLED_DIR"
+
+  disable_file_if_exists /etc/apt/sources.list "$APT_DISABLED_DIR"
+  disable_file_if_exists /etc/apt/sources.list.d/debian.sources "$APT_DISABLED_DIR"
+  disable_file_if_exists /etc/apt/sources.list.d/ubuntu.sources "$APT_DISABLED_DIR"
+  disable_file_if_exists /etc/apt/sources.list.d/raspi.sources "$APT_DISABLED_DIR"
+  disable_file_if_exists /etc/apt/sources.list.d/raspi.list "$APT_DISABLED_DIR"
+}
+
+write_apt_ipv4_timeout_config() {
+  [[ "$FORCE_IPV4_APT" == "1" ]] || return 0
+  mkdir -p /etc/apt/apt.conf.d
+  cat > /etc/apt/apt.conf.d/99serverfixed-force-ipv4-timeout <<'EOF2'
+Acquire::ForceIPv4 "true";
+Acquire::http::Timeout "10";
+Acquire::https::Timeout "10";
+Acquire::Retries "2";
+EOF2
+  log "已写入 apt IPv4/超时配置：/etc/apt/apt.conf.d/99serverfixed-force-ipv4-timeout"
 }
 
 write_apt_sources() {
   [[ -n "$SELECTED_MIRROR_URL" ]] || return 0
+
   backup_apt_sources
   mkdir -p /etc/apt/sources.list.d
+  cleanup_invalid_apt_filenames
   disable_default_apt_source_files
+  write_apt_ipv4_timeout_config
 
   if [[ "$APT_FAMILY" == "ubuntu" ]]; then
     cat > /etc/apt/sources.list <<EOF2
@@ -260,12 +352,14 @@ fix_pve_repos_if_needed() {
 
   log "检测到 Proxmox VE，开始处理 enterprise/no-subscription 源。"
   mkdir -p /etc/apt/sources.list.d
+  local pve_disabled="/etc/apt/serverfixed-pve-disabled-${TS}"
+  mkdir -p "$pve_disabled"
 
   for f in /etc/apt/sources.list.d/pve-enterprise.list \
            /etc/apt/sources.list.d/ceph.list \
            /etc/apt/sources.list.d/ceph.sources; do
     if [[ -f "$f" ]] && grep -q 'enterprise.proxmox.com' "$f"; then
-      mv "$f" "${f}.serverfixed.disabled.${TS}"
+      mv -f "$f" "${pve_disabled}/$(basename "$f").disabled-${TS}" || warn "禁用 ${f} 失败"
       log "已禁用 enterprise 源：${f}"
     fi
   done
@@ -277,16 +371,17 @@ EOF2
   log "已添加 PVE no-subscription 源。"
 
   local ceph_component=""
-  if grep -Rqs 'ceph-quincy' /etc/apt/sources.list.d/*.serverfixed.disabled.* 2>/dev/null; then
+  if grep -Rqs 'ceph-quincy' "$pve_disabled" 2>/dev/null; then
     ceph_component="ceph-quincy"
-  elif grep -Rqs 'ceph-reef' /etc/apt/sources.list.d/*.serverfixed.disabled.* 2>/dev/null; then
+  elif grep -Rqs 'ceph-reef' "$pve_disabled" 2>/dev/null; then
     ceph_component="ceph-reef"
-  elif grep -Rqs 'ceph-squid' /etc/apt/sources.list.d/*.serverfixed.disabled.* 2>/dev/null; then
+  elif grep -Rqs 'ceph-squid' "$pve_disabled" 2>/dev/null; then
     ceph_component="ceph-squid"
   fi
 
   if [[ -n "$ceph_component" ]]; then
     cat > "/etc/apt/sources.list.d/${ceph_component}-no-subscription.list" <<EOF2
+# Generated by serverfixed linux_init_cn.sh at ${TS}
 deb http://download.proxmox.com/debian/${ceph_component} ${OS_CODENAME} no-subscription
 EOF2
     log "已添加 Ceph no-subscription 源：${ceph_component}"
@@ -296,10 +391,13 @@ EOF2
 apt_update_and_install() {
   command -v apt-get >/dev/null 2>&1 || return 0
   export DEBIAN_FRONTEND=noninteractive
+
   log "开始 apt update。"
   apt-get update
+
   log "安装基础组件：sudo openssh-server ca-certificates curl wget gnupg lsb-release。"
   apt-get install -y sudo openssh-server ca-certificates curl wget gnupg lsb-release apt-transport-https
+
   if [[ "$RUN_UPGRADE" == "1" ]]; then
     log "开始 apt upgrade。可通过 RUN_UPGRADE=0 跳过。"
     apt-get upgrade -y
@@ -344,7 +442,7 @@ create_or_update_user() {
     usermod -aG sudo "$INIT_USER"
   fi
 
-  if [[ -x /usr/sbin/visudo || -x /usr/bin/visudo ]]; then
+  if command -v visudo >/dev/null 2>&1; then
     local sudoers_file="/etc/sudoers.d/90-serverfixed-${INIT_USER}"
     printf '%s ALL=(ALL:ALL) ALL\n' "$INIT_USER" > "$sudoers_file"
     chmod 0440 "$sudoers_file"
@@ -368,7 +466,7 @@ ensure_sshd_include_first() {
   if ! grep -Eq '^\s*Include\s+/etc/ssh/sshd_config\.d/\*\.conf' "$main_conf"; then
     cp -a "$main_conf" "${main_conf}.serverfixed.bak.${TS}"
     { echo "$include_line"; cat "$main_conf"; } > "${main_conf}.tmp.${TS}"
-    mv "${main_conf}.tmp.${TS}" "$main_conf"
+    mv -f "${main_conf}.tmp.${TS}" "$main_conf"
     log "已在 sshd_config 顶部加入 Include，以便 drop-in 配置生效。"
   fi
 }
