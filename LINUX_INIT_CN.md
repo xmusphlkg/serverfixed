@@ -2,53 +2,32 @@
 
 文件：`linux_init_cn.sh`
 
-这个脚本用于新装 Linux 服务器或新建 VM/CT 后的基础初始化，重点面向中国大陆网络环境下的 Debian、Ubuntu、Proxmox VE，也兼容部分 dnf/yum 系统的基础 SSH/sudo 初始化。
+这个脚本现在采用 **分层初始化** 设计：默认只做最稳定、最关键的第一步——自动识别系统、测试中国境内 apt mirror、选择最快 mirror、备份旧源并写入新的系统 apt 源。后续的 `apt update`、安装 SSH/sudo、创建用户、修改 SSH 配置等步骤，由管理员按本文档手动执行。
 
-## 功能
+这样做的原因是：新装系统、PVE VM、校园网、IPv6 异常、DNS 异常、Ubuntu 短周期版本、apt 锁、第三方源损坏等场景非常常见。如果全部串联自动执行，任意一步失败都会导致初始化脚本中断。现在脚本只负责先把系统 apt 源修好，后面的动作清晰列出，便于人工判断和回滚。
+
+## 默认功能
 
 1. 自动识别 Linux 发行版、版本号和 codename。
-2. 对常见中国境内 apt mirror 进行延迟测试，自动选择最低延迟源。
-3. 备份并替换系统 apt 源。
-4. 执行 `apt update`，安装基础组件。
-5. 默认执行 `apt upgrade -y`，可通过参数关闭。
-6. 启动并启用 SSH 服务。
-7. 新建或更新管理员用户，默认用户为 `likangguo`。
-8. 交互式设置或修改 `likangguo` 密码。
-9. 配置 sudo 权限。
-10. 写入 SSH 基础安全配置。
-11. 在 Proxmox VE 上可自动禁用 enterprise 源并添加 no-subscription 源。
+2. 对常见中国境内 apt mirror 进行延迟测试。
+3. 自动选择最低延迟 mirror。
+4. 备份原 apt 源。
+5. 清理 `/etc/apt/sources.list.d/` 中会导致 apt 提示 `Ignoring file ... invalid filename extension` 的 `.bak*`、`.disabled*`、`.save`、`.distUpgrade` 文件。
+6. 将旧系统源移出到 `/etc/apt/serverfixed-disabled-*`。
+7. 写入新的 `/etc/apt/sources.list`。
+8. 写入 apt IPv4/超时配置，避免 IPv6 可解析但不可达导致 `apt update` 长时间卡住。
+9. 打印后续手动初始化命令。
 
 ## 支持范围
 
 优先支持：
 
 - Debian 10/11/12/13
-- Ubuntu 20.04/22.04/24.04/26.04 及类似发行版
+- Ubuntu 20.04/22.04/24.04/25.04/26.04 及类似发行版
 - Proxmox VE，基于 Debian
-- Raspbian/Raspberry Pi OS，基础兼容
+- Raspberry Pi OS，基础兼容
 
-有限支持：
-
-- Rocky Linux / AlmaLinux / CentOS / Fedora 等 dnf/yum 系统
-
-说明：dnf/yum 系统目前不会自动替换国内 mirror，只会尝试更新缓存、安装 `sudo` 和 `openssh-server`，然后继续创建用户和配置 SSH。
-
-## 一键运行
-
-推荐在服务器控制台、PVE Console、iDRAC/iKVM 或稳定 SSH 会话中运行。首次运行会提示为 `likangguo` 设置密码。
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/linux_init_cn.sh -o /tmp/linux_init_cn.sh
-sudo bash /tmp/linux_init_cn.sh
-```
-
-或者直接管道运行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/linux_init_cn.sh | sudo bash
-```
-
-注意：管道运行时通常不是交互式终端，可能无法输入密码。更推荐先下载脚本再执行。
+说明：当前脚本只负责 apt 系统换源。Rocky Linux、AlmaLinux、CentOS、Fedora 等 dnf/yum 系统不建议使用此脚本。
 
 ## 推荐运行方式
 
@@ -59,133 +38,153 @@ chmod +x linux_init_cn.sh
 sudo ./linux_init_cn.sh
 ```
 
+如果当前系统没有 `curl`，但有 `wget`：
+
+```bash
+cd /tmp
+wget -O linux_init_cn.sh https://raw.githubusercontent.com/xmusphlkg/serverfixed/main/linux_init_cn.sh
+chmod +x linux_init_cn.sh
+sudo ./linux_init_cn.sh
+```
+
+如果 `curl` 和 `wget` 都没有，先手动写一个国内源，然后再安装 curl/wget。以 Ubuntu 为例：
+
+```bash
+. /etc/os-release
+CODENAME="${VERSION_CODENAME}"
+cat > /etc/apt/sources.list <<EOF
+deb http://mirrors.ustc.edu.cn/ubuntu/ $CODENAME main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu/ $CODENAME-updates main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu/ $CODENAME-backports main restricted universe multiverse
+deb http://mirrors.ustc.edu.cn/ubuntu/ $CODENAME-security main restricted universe multiverse
+EOF
+apt update
+apt install -y curl wget
+```
+
 ## 常用参数
-
-脚本通过环境变量控制行为。
-
-### 指定用户名
-
-默认创建或配置 `likangguo`。
-
-```bash
-INIT_USER=likangguo sudo bash /tmp/linux_init_cn.sh
-```
-
-### 跳过系统升级
-
-如果是 PVE、生产服务器、GPU 服务器或不希望自动升级内核，建议先跳过 `apt upgrade`。
-
-```bash
-RUN_UPGRADE=0 sudo bash /tmp/linux_init_cn.sh
-```
 
 ### 强制指定 mirror
 
-如果自动测速失败，可以手动指定。
-
-Debian：
-
-```bash
-MIRROR_FORCE=https://mirrors.ustc.edu.cn/debian sudo bash /tmp/linux_init_cn.sh
-```
+如果自动测速结果不理想，可以强制指定。
 
 Ubuntu：
 
 ```bash
-MIRROR_FORCE=https://mirrors.ustc.edu.cn/ubuntu sudo bash /tmp/linux_init_cn.sh
+MIRROR_FORCE=https://mirrors.ustc.edu.cn/ubuntu sudo ./linux_init_cn.sh
 ```
 
-### SSH 密码登录策略
-
-首次初始化建议保留密码登录：
+Debian：
 
 ```bash
-SSH_PASSWORD_AUTH=yes sudo bash /tmp/linux_init_cn.sh
+MIRROR_FORCE=https://mirrors.ustc.edu.cn/debian sudo ./linux_init_cn.sh
 ```
 
-稳定后如果已经配置 SSH key，可以关闭密码登录：
+### 调整测速超时和次数
 
 ```bash
-SSH_PASSWORD_AUTH=no sudo bash /tmp/linux_init_cn.sh
+MIRROR_TIMEOUT=5 MIRROR_REPEAT=3 sudo ./linux_init_cn.sh
 ```
 
-### root SSH 登录策略
+### 关闭 apt 强制 IPv4
 
-默认值：
-
-```bash
-SSH_ROOT_LOGIN=prohibit-password
-```
-
-含义是禁止 root 用密码登录，但仍允许 root 使用 SSH key 登录。
-
-更严格的设置：
-
-```bash
-SSH_ROOT_LOGIN=no sudo bash /tmp/linux_init_cn.sh
-```
-
-### Proxmox VE enterprise 源处理
-
-默认开启：
-
-```bash
-PVE_FIX_REPOS=1
-```
-
-脚本会尝试禁用：
-
-- `/etc/apt/sources.list.d/pve-enterprise.list`
-- 含 `enterprise.proxmox.com` 的 Ceph enterprise 源
-
-并添加：
-
-- `pve-no-subscription.list`
-- 如果检测到 Ceph enterprise 源，也会添加对应的 Ceph no-subscription 源
-
-如果不希望脚本处理 PVE 源：
-
-```bash
-PVE_FIX_REPOS=0 sudo bash /tmp/linux_init_cn.sh
-```
-
-## 脚本会修改哪些文件
-
-### apt 源
-
-会备份：
-
-```bash
-/etc/apt/serverfixed-backup-YYYYMMDD-HHMMSS/
-```
-
-可能会移动旧系统源到类似文件：
-
-```bash
-/etc/apt/sources.list.serverfixed.bak.YYYYMMDD-HHMMSS
-/etc/apt/sources.list.d/debian.sources.serverfixed.bak.YYYYMMDD-HHMMSS
-/etc/apt/sources.list.d/ubuntu.sources.serverfixed.bak.YYYYMMDD-HHMMSS
-```
-
-然后生成新的：
-
-```bash
-/etc/apt/sources.list
-```
-
-第三方源通常会保留，例如 Zabbix、Tailscale、Docker、Wazuh 等。PVE enterprise 源例外，默认会禁用。
-
-### SSH 配置
-
-会写入：
-
-```bash
-/etc/ssh/sshd_config.d/99-serverfixed-init.conf
-```
-
-默认内容包括：
+默认会写入：
 
 ```text
+Acquire::ForceIPv4 "true";
+Acquire::http::Timeout "10";
+Acquire::https::Timeout "10";
+Acquire::Retries "2";
+```
+
+如果确认 IPv6 正常，可以关闭：
+
+```bash
+FORCE_IPV4_APT=0 sudo ./linux_init_cn.sh
+```
+
+### 指定后续示例中的管理员用户名
+
+脚本默认在输出的后续命令中使用 `likangguo`：
+
+```bash
+INIT_USER=likangguo sudo ./linux_init_cn.sh
+```
+
+## 换源后应该怎么做
+
+### 1. 更新 apt 索引
+
+```bash
+apt clean
+apt update
+```
+
+如果 `apt update` 卡住，先检查网络和 DNS：
+
+```bash
+ping -c 3 223.5.5.5
+ping -c 3 mirrors.ustc.edu.cn
+getent hosts mirrors.ustc.edu.cn
+ip route
+cat /etc/resolv.conf
+```
+
+如果仍然卡住，可以临时强制 IPv4：
+
+```bash
+apt -o Acquire::ForceIPv4=true update
+```
+
+### 2. 安装基础组件
+
+```bash
+apt install -y sudo openssh-server ca-certificates curl wget gnupg lsb-release
+```
+
+### 3. 启动 SSH
+
+Ubuntu/Debian 通常服务名是 `ssh`，部分系统是 `sshd`：
+
+```bash
+systemctl enable --now ssh || systemctl enable --now sshd
+systemctl status ssh --no-pager || systemctl status sshd --no-pager
+```
+
+检查 SSH 监听：
+
+```bash
+ss -tlnp | grep -E ':22\s'
+```
+
+### 4. 新建用户 `likangguo`
+
+```bash
+adduser likangguo
+usermod -aG sudo likangguo
+```
+
+验证：
+
+```bash
+id likangguo
+```
+
+### 5. 配置 sudo
+
+```bash
+echo 'likangguo ALL=(ALL:ALL) ALL' > /etc/sudoers.d/90-likangguo
+chmod 0440 /etc/sudoers.d/90-likangguo
+visudo -cf /etc/sudoers.d/90-likangguo
+```
+
+### 6. 设置 SSH 基础配置
+
+首次初始化建议先允许密码登录，确认 `likangguo` 能登录后，再切换到 SSH key-only。
+
+```bash
+mkdir -p /etc/ssh/sshd_config.d
+cat > /etc/ssh/sshd_config.d/99-serverfixed-init.conf <<'EOF'
 PubkeyAuthentication yes
 PasswordAuthentication yes
 KbdInteractiveAuthentication no
@@ -195,166 +194,147 @@ X11Forwarding no
 MaxAuthTries 4
 ClientAliveInterval 300
 ClientAliveCountMax 2
+EOF
 ```
 
-如果主配置没有 include drop-in 目录，会在 `/etc/ssh/sshd_config` 顶部加入：
+如果主配置没有 include drop-in 目录，需要补充：
 
-```text
-Include /etc/ssh/sshd_config.d/*.conf
+```bash
+grep -q '^Include /etc/ssh/sshd_config.d/\*.conf' /etc/ssh/sshd_config || \
+  sed -i '1i Include /etc/ssh/sshd_config.d/*.conf' /etc/ssh/sshd_config
 ```
 
-并自动执行：
+检查并重启 SSH：
 
 ```bash
 sshd -t
 systemctl restart ssh || systemctl restart sshd
 ```
 
-### sudo 配置
-
-会写入：
-
-```bash
-/etc/sudoers.d/90-serverfixed-likangguo
-```
-
-内容：
-
-```text
-likangguo ALL=(ALL:ALL) ALL
-```
-
-并用 `visudo -cf` 验证语法。
-
-## 初始化后验证
-
-### 检查用户
-
-```bash
-id likangguo
-getent passwd likangguo
-sudo -l -U likangguo
-```
-
-### 检查 SSH
-
-```bash
-systemctl status ssh --no-pager || systemctl status sshd --no-pager
-sshd -T | egrep 'permitrootlogin|passwordauthentication|pubkeyauthentication|x11forwarding|maxauthtries|clientalive'
-```
-
-### 检查 apt
-
-```bash
-cat /etc/apt/sources.list
-sudo apt update
-```
-
-### 从另一台机器测试登录
+### 7. 从另一台机器测试
 
 ```bash
 ssh likangguo@服务器IP
 sudo -v
 ```
 
-## 回滚 apt 源
+确认可登录后，不要关闭当前 root 会话，先开一个新窗口测试登录成功，再继续安全加固。
 
-脚本会备份 apt 源。假设备份目录为：
+## 稳定后建议关闭 SSH 密码登录
 
-```bash
-/etc/apt/serverfixed-backup-20260624-120000/
-```
-
-可以手动回滚：
+先给 `likangguo` 配置 SSH 公钥：
 
 ```bash
-sudo cp -a /etc/apt/serverfixed-backup-20260624-120000/sources.list /etc/apt/sources.list
-sudo rm -rf /etc/apt/sources.list.d
-sudo cp -a /etc/apt/serverfixed-backup-20260624-120000/sources.list.d /etc/apt/sources.list.d
-sudo apt update
-```
-
-## 回滚 SSH 配置
-
-删除脚本生成的 SSH drop-in：
-
-```bash
-sudo rm -f /etc/ssh/sshd_config.d/99-serverfixed-init.conf
-sudo sshd -t
-sudo systemctl restart ssh || sudo systemctl restart sshd
-```
-
-## 建议的安全流程
-
-首次初始化时可以暂时允许密码登录，方便部署：
-
-```bash
-SSH_PASSWORD_AUTH=yes sudo bash /tmp/linux_init_cn.sh
-```
-
-登录成功后，给 `likangguo` 添加 SSH 公钥：
-
-```bash
+su - likangguo
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 nano ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
+exit
 ```
 
-确认公钥登录正常后，关闭密码登录：
+确认公钥登录成功后，关闭密码登录：
 
 ```bash
-sudo sed -i 's/^PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config.d/99-serverfixed-init.conf
-sudo sshd -t
-sudo systemctl restart ssh || sudo systemctl restart sshd
+sed -i 's/^PasswordAuthentication .*/PasswordAuthentication no/' /etc/ssh/sshd_config.d/99-serverfixed-init.conf
+sshd -t
+systemctl restart ssh || systemctl restart sshd
+```
+
+## Ubuntu 25.04 / plucky 特别说明
+
+Ubuntu 25.04 是短周期版本。若未来进入 EOL，普通 mirror 可能逐步移除该版本，表现为 `apt update` 出现 404、Release 文件缺失或安全源不可用。此时有两种选择：
+
+1. 推荐：升级到仍受支持版本，例如 LTS。
+2. 临时：改用 Ubuntu old-releases 源。
+
+临时 old-releases 示例：
+
+```bash
+cat > /etc/apt/sources.list <<'EOF'
+deb http://old-releases.ubuntu.com/ubuntu/ plucky main restricted universe multiverse
+deb http://old-releases.ubuntu.com/ubuntu/ plucky-updates main restricted universe multiverse
+deb http://old-releases.ubuntu.com/ubuntu/ plucky-backports main restricted universe multiverse
+deb http://old-releases.ubuntu.com/ubuntu/ plucky-security main restricted universe multiverse
+EOF
+apt clean
+apt update
+```
+
+## apt 源备份和回滚
+
+脚本会备份到：
+
+```bash
+/etc/apt/serverfixed-backup-YYYYMMDD-HHMMSS/
+```
+
+旧系统源会移出到：
+
+```bash
+/etc/apt/serverfixed-disabled-YYYYMMDD-HHMMSS/
+```
+
+回滚示例：
+
+```bash
+BACKUP=/etc/apt/serverfixed-backup-YYYYMMDD-HHMMSS
+cp -a "$BACKUP/sources.list" /etc/apt/sources.list 2>/dev/null || true
+rm -rf /etc/apt/sources.list.d
+cp -a "$BACKUP/sources.list.d" /etc/apt/sources.list.d
+apt update
 ```
 
 ## 常见问题
 
-### 1. 自动测速全部失败
+### 1. `Notice: Ignoring file ... invalid filename extension`
 
-可能是 DNS、证书、时间或出站网络问题。可以强制指定 mirror：
+这是因为 `/etc/apt/sources.list.d/` 中存在 `.bak.时间戳` 之类文件。新版脚本会自动把它们移到 `/etc/apt/serverfixed-disabled-*`。
 
-```bash
-MIRROR_FORCE=https://mirrors.ustc.edu.cn/debian sudo bash /tmp/linux_init_cn.sh
-```
-
-### 2. 管道运行后没有提示输入密码
-
-这是因为管道运行不是交互式终端。请执行：
+也可以手动清理：
 
 ```bash
-sudo passwd likangguo
+mkdir -p /etc/apt/manual-disabled
+mv /etc/apt/sources.list.d/*.bak* /etc/apt/manual-disabled/ 2>/dev/null || true
+mv /etc/apt/sources.list.d/*.disabled* /etc/apt/manual-disabled/ 2>/dev/null || true
+apt update
 ```
 
-### 3. PVE apt update 仍然出现 enterprise 401
+### 2. `apt update` 一直卡在 Connecting
 
-检查是否还有 enterprise 源：
+常见原因是 DNS 问题、IPv6 路由异常、网关不能出公网或被代理阻断。先强制 IPv4：
 
 ```bash
-grep -R "enterprise.proxmox.com" /etc/apt/sources.list /etc/apt/sources.list.d || true
+apt -o Acquire::ForceIPv4=true update
 ```
 
-如仍存在，可以手动禁用对应文件后再运行：
+再检查：
 
 ```bash
-sudo apt update
+ping -c 3 223.5.5.5
+getent hosts mirrors.ustc.edu.cn
+ip route
+cat /etc/resolv.conf
 ```
+
+### 3. 没有 curl，无法下载脚本
+
+使用 wget；如果 wget 也没有，先手动写入 USTC 源，再安装 curl/wget。
 
 ### 4. SSH 重启失败
 
 先检查语法：
 
 ```bash
-sudo sshd -t
+sshd -t
 ```
 
-如果失败，删除脚本生成的 drop-in 并恢复：
+如果失败，删除 drop-in：
 
 ```bash
-sudo rm -f /etc/ssh/sshd_config.d/99-serverfixed-init.conf
-sudo sshd -t
-sudo systemctl restart ssh || sudo systemctl restart sshd
+rm -f /etc/ssh/sshd_config.d/99-serverfixed-init.conf
+sshd -t
+systemctl restart ssh || systemctl restart sshd
 ```
 
 ## 日志
@@ -368,5 +348,5 @@ sudo systemctl restart ssh || sudo systemctl restart sshd
 查看最近日志：
 
 ```bash
-sudo tail -n 200 /var/log/serverfixed-init.log
+tail -n 200 /var/log/serverfixed-init.log
 ```
